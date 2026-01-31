@@ -104,9 +104,35 @@ export default function Profile({ pubkey }: ProfileProps) {
   // API can return null for various fields when user data isn't available
   const profile = divineUser.profile ?? {};
   const social = divineUser.social ?? { follower_count: 0, following_count: 0 };
-  const stats = divineUser.stats ?? { video_count: 0, total_reactions: 0, total_comments: 0, total_reposts: 0 };
-  const engagement = divineUser.engagement ?? { avg_reactions_per_video: 0, avg_comments_per_video: 0, engagement_rate: 0 };
+  const stats = divineUser.stats ?? { 
+    video_count: 0, 
+    total_reactions: 0,
+    total_comments: 0,
+    total_reposts: 0
+  };
+  const engagement = divineUser.engagement ?? { 
+    avg_reactions_per_video: 0, 
+    avg_comments_per_video: 0, 
+    engagement_rate: 0
+  };
   const videos = videosData?.pages.flat() ?? [];
+
+  // Format NIP-05 for divine.video domain
+  const formatNip05 = (nip05: string | undefined): string | null => {
+    if (!nip05) return null;
+    // If it's already in format like "user@divine.video" or "_@domain", extract username part
+    const parts = nip05.split('@');
+    if (parts.length === 2) {
+      const [username, domain] = parts;
+      // If the domain is divine.video, format as @username.divine.video
+      if (domain === 'divine.video') {
+        return username === '_' ? '@divine.video' : `@${username}.divine.video`;
+      }
+      // For other domains, show as-is
+      return nip05;
+    }
+    return nip05;
+  };
 
   const handleFollow = () => {
     if (!isAuthenticated) {
@@ -180,7 +206,7 @@ export default function Profile({ pubkey }: ProfileProps) {
                   {profile.nip05 && (
                     <Badge variant="secondary" className="mt-2 gap-1">
                       <Sparkles className="h-3 w-3" />
-                      {profile.nip05}
+                      {formatNip05(profile.nip05)}
                     </Badge>
                   )}
                 </div>
@@ -332,15 +358,15 @@ export default function Profile({ pubkey }: ProfileProps) {
               <CardContent className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Avg. Likes/Video</span>
-                  <span className="font-medium">{(engagement.avg_reactions_per_video ?? 0).toFixed(1)}</span>
+                  <span className="font-medium">{engagement.avg_reactions_per_video.toFixed(1)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Avg. Comments</span>
-                  <span className="font-medium">{(engagement.avg_comments_per_video ?? 0).toFixed(1)}</span>
+                  <span className="font-medium">{engagement.avg_comments_per_video.toFixed(1)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Engagement Rate</span>
-                  <span className="font-medium">{((engagement.engagement_rate ?? 0) * 100).toFixed(1)}%</span>
+                  <span className="font-medium">{(engagement.engagement_rate * 100).toFixed(1)}%</span>
                 </div>
               </CardContent>
             </Card>
