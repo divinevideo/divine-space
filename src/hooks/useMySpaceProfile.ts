@@ -18,6 +18,62 @@ export const MYSPACE_THEMES = [
   { id: 'space', name: 'Space', description: 'Cosmic vibes' },
 ] as const;
 
+// Default fun widgets for users without customization
+export const DEFAULT_MOODS = [
+  { text: 'Vibing', emoji: '✨' },
+  { text: 'Creative', emoji: '🎨' },
+  { text: 'Chill', emoji: '😎' },
+  { text: 'Inspired', emoji: '💡' },
+  { text: 'Musical', emoji: '🎵' },
+  { text: 'Caffeinated', emoji: '☕' },
+  { text: 'Dreamy', emoji: '🌙' },
+  { text: 'On Fire', emoji: '🔥' },
+];
+
+export const DEFAULT_QUOTES = [
+  "Life moves pretty fast. If you don't stop and look around once in a while, you could miss it.",
+  "Be yourself; everyone else is already taken.",
+  "Not all those who wander are lost.",
+  "In a world where you can be anything, be kind.",
+  "The only way to do great work is to love what you do.",
+  "Stay hungry, stay foolish.",
+  "Everything you can imagine is real.",
+  "Create the things you wish existed.",
+  "Do what you love and you'll never work a day in your life.",
+  "Life is what happens when you're busy making other plans.",
+];
+
+export const DEFAULT_STATUSES = [
+  "Living my best life ✨",
+  "Making magic happen",
+  "Building something cool 🛠️",
+  "Exploring the nostrverse 🌐",
+  "Creating content 🎬",
+  "Vibing with good music 🎧",
+  "Always learning, always growing 📚",
+  "Here for the good vibes only",
+];
+
+// Generate deterministic defaults based on pubkey for consistency
+function getDefaultsForPubkey(pubkey: string): Partial<MySpaceProfileData> {
+  // Use pubkey characters to pick consistent defaults
+  const charSum = pubkey.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  
+  const moodIndex = charSum % DEFAULT_MOODS.length;
+  const quoteIndex = (charSum * 7) % DEFAULT_QUOTES.length;
+  const statusIndex = (charSum * 13) % DEFAULT_STATUSES.length;
+  const themeIndex = (charSum * 3) % MYSPACE_THEMES.length;
+  
+  return {
+    mood: DEFAULT_MOODS[moodIndex],
+    quote: DEFAULT_QUOTES[quoteIndex],
+    status: DEFAULT_STATUSES[statusIndex],
+    theme: MYSPACE_THEMES[themeIndex].id,
+    autoplay: false,
+    topFriends: [],
+  };
+}
+
 export type ThemeId = typeof MYSPACE_THEMES[number]['id'];
 
 export interface TopFriend {
@@ -202,11 +258,15 @@ export function useMySpaceProfile(pubkey: string | undefined) {
       ]);
 
       if (events.length === 0) {
-        // Return default profile
+        // Return fun defaults based on pubkey for users without customization
+        const defaults = getDefaultsForPubkey(pubkey);
         return {
           topFriends: [],
           autoplay: false,
-          theme: 'default' as ThemeId,
+          theme: defaults.theme as ThemeId,
+          mood: defaults.mood,
+          quote: defaults.quote,
+          status: defaults.status,
         } as MySpaceProfileData;
       }
 

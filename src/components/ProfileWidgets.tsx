@@ -31,6 +31,14 @@ export const MOOD_OPTIONS = [
   { emoji: '🎵', label: 'Musical' },
   { emoji: '💭', label: 'Contemplative' },
   { emoji: '🤘', label: 'Rocking' },
+  { emoji: '🎨', label: 'Creative' },
+  { emoji: '💡', label: 'Inspired' },
+  { emoji: '🚀', label: 'Productive' },
+  { emoji: '🌈', label: 'Hopeful' },
+  { emoji: '🎮', label: 'Gaming' },
+  { emoji: '📚', label: 'Learning' },
+  { emoji: '💪', label: 'Motivated' },
+  { emoji: '🧘', label: 'Zen' },
 ];
 
 interface MoodWidgetProps {
