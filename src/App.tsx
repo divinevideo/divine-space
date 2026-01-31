@@ -32,10 +32,10 @@ const queryClient = new QueryClient({
 });
 
 const defaultConfig: AppConfig = {
-  theme: "light",
+  theme: "dark",
   relayMetadata: {
     relays: [
-      { url: 'wss://relay.ditto.pub', read: true, write: true },
+      { url: 'wss://relay.divine.video', read: true, write: true },
       { url: 'wss://relay.primal.net', read: true, write: true },
       { url: 'wss://relay.damus.io', read: true, write: true },
     ],
