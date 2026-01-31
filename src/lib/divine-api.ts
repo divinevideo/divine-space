@@ -86,9 +86,9 @@ export interface UserEngagement {
 export interface UserResponse {
   pubkey: string;
   profile: UserProfile | null;
-  social: UserSocial;
-  stats: UserStats;
-  engagement: UserEngagement;
+  social: UserSocial | null;
+  stats: UserStats | null;
+  engagement: UserEngagement | null;
 }
 
 export interface HashtagItem {

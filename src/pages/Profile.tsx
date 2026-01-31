@@ -93,9 +93,11 @@ export default function Profile({ pubkey }: ProfileProps) {
     return <NotFound />;
   }
 
-  const { social, stats, engagement } = divineUser;
-  // Profile can be null for users who haven't set up their profile
+  // API can return null for various fields when user data isn't available
   const profile = divineUser.profile ?? {};
+  const social = divineUser.social ?? { follower_count: 0, following_count: 0 };
+  const stats = divineUser.stats ?? { video_count: 0, total_reactions: 0, total_comments: 0, total_reposts: 0 };
+  const engagement = divineUser.engagement ?? { avg_reactions_per_video: 0, avg_comments_per_video: 0, engagement_rate: 0 };
   const videos = videosData?.pages.flat() ?? [];
 
   const handleFollow = () => {
@@ -272,15 +274,15 @@ export default function Profile({ pubkey }: ProfileProps) {
           <CardContent className="py-4">
             <div className="flex flex-wrap items-center justify-center gap-8 text-center">
               <div>
-                <div className="text-lg font-semibold">{engagement.avg_reactions_per_video.toFixed(1)}</div>
+                <div className="text-lg font-semibold">{(engagement.avg_reactions_per_video ?? 0).toFixed(1)}</div>
                 <div className="text-xs text-muted-foreground">Avg. Likes/Video</div>
               </div>
               <div>
-                <div className="text-lg font-semibold">{engagement.avg_comments_per_video.toFixed(1)}</div>
+                <div className="text-lg font-semibold">{(engagement.avg_comments_per_video ?? 0).toFixed(1)}</div>
                 <div className="text-xs text-muted-foreground">Avg. Comments/Video</div>
               </div>
               <div>
-                <div className="text-lg font-semibold">{(engagement.engagement_rate * 100).toFixed(1)}%</div>
+                <div className="text-lg font-semibold">{((engagement.engagement_rate ?? 0) * 100).toFixed(1)}%</div>
                 <div className="text-xs text-muted-foreground">Engagement Rate</div>
               </div>
               <div>
