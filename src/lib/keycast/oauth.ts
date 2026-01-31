@@ -203,22 +203,29 @@ export class KeycastOAuth {
   async exchangeCode(code: string, verifier?: string): Promise<TokenResponse> {
     // Try: explicit verifier > in-memory PKCE > stored PKCE
     let codeVerifier = verifier ?? this.pendingPkce?.verifier;
+    console.log('[Keycast] Exchange code - explicit verifier:', !!verifier, 'pending PKCE:', !!this.pendingPkce);
+    
     if (!codeVerifier) {
       const storedPkce = this.storage.getItem(STORAGE_KEY_PKCE);
+      console.log('[Keycast] Checking stored PKCE:', !!storedPkce);
       if (storedPkce) {
         try {
           const parsed = JSON.parse(storedPkce) as PkceChallenge;
           codeVerifier = parsed.verifier;
-        } catch {
-          // Invalid stored PKCE, ignore
+          console.log('[Keycast] Found stored PKCE verifier');
+        } catch (e) {
+          console.error('[Keycast] Failed to parse stored PKCE:', e);
         }
       }
     }
 
     if (!codeVerifier) {
+      console.error('[Keycast] No PKCE verifier found!');
       throw new Error('Session not found. This can happen if you opened this link on a different device or browser than where you started sign-in. Please return to your original device, or start a new sign-in from this one.');
     }
 
+    console.log('[Keycast] Exchanging code with redirect_uri:', this.config.redirectUri);
+    
     const response = await this.fetchFn(`${this.config.serverUrl}/api/oauth/token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -232,9 +239,11 @@ export class KeycastOAuth {
     });
 
     const data = await response.json();
+    console.log('[Keycast] Token response status:', response.status);
 
     if (!response.ok) {
       const error = data as OAuthError;
+      console.error('[Keycast] Token error:', error);
       throw new Error(error.error_description ?? error.error ?? 'Token exchange failed');
     }
 

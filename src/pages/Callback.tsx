@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
 import { useKeycast } from '@/contexts/KeycastContext';
 import { Card, CardContent } from '@/components/ui/card';
@@ -9,9 +9,11 @@ import { Link } from 'react-router-dom';
 
 export default function Callback() {
   const navigate = useNavigate();
-  const { handleCallback, isAuthenticated } = useKeycast();
+  const [searchParams] = useSearchParams();
+  const { handleCallback } = useKeycast();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [error, setError] = useState<string | null>(null);
+  const processedRef = useRef(false);
 
   useSeoMeta({
     title: 'Signing in... - DiVine Space',
@@ -19,9 +21,33 @@ export default function Callback() {
   });
 
   useEffect(() => {
+    // Only process once
+    if (processedRef.current) return;
+    
+    const code = searchParams.get('code');
+    const errorParam = searchParams.get('error');
+    
+    // Check if we have the necessary OAuth params
+    if (!code && !errorParam) {
+      setStatus('error');
+      setError('No authorization code received. Please try signing in again.');
+      return;
+    }
+
+    if (errorParam) {
+      setStatus('error');
+      setError(searchParams.get('error_description') || errorParam);
+      return;
+    }
+
+    processedRef.current = true;
+
     const processCallback = async () => {
       try {
+        console.log('Processing OAuth callback with code:', code?.substring(0, 10) + '...');
         const success = await handleCallback();
+        console.log('Callback result:', success);
+        
         if (success) {
           setStatus('success');
           // Redirect after a brief delay
@@ -33,13 +59,14 @@ export default function Callback() {
           setError('Failed to complete sign-in. Please try again.');
         }
       } catch (e) {
+        console.error('Callback error:', e);
         setStatus('error');
         setError(e instanceof Error ? e.message : 'An unexpected error occurred');
       }
     };
 
     processCallback();
-  }, [handleCallback, navigate]);
+  }, [searchParams, handleCallback, navigate]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
@@ -58,7 +85,7 @@ export default function Callback() {
           {status === 'success' && (
             <>
               <CheckCircle2 className="h-16 w-16 mx-auto mb-4 text-green-500" />
-              <h1 className="text-2xl font-bold mb-2">Welcome back!</h1>
+              <h1 className="text-2xl font-bold mb-2">Welcome!</h1>
               <p className="text-muted-foreground">
                 You've been signed in successfully. Redirecting...
               </p>
@@ -76,7 +103,10 @@ export default function Callback() {
                 <Link to="/">
                   <Button variant="outline">Go Home</Button>
                 </Link>
-                <Button onClick={() => window.location.reload()}>
+                <Button onClick={() => {
+                  processedRef.current = false;
+                  window.location.href = '/';
+                }}>
                   Try Again
                 </Button>
               </div>

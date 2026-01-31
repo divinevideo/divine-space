@@ -1,5 +1,5 @@
-import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
-import { createDivineKeycastClient, KeycastRpc, type StoredCredentials } from '@/lib/keycast';
+import { createContext, useContext, useEffect, useState, useCallback, useMemo, ReactNode } from 'react';
+import { createKeycastClient, KeycastRpc, type StoredCredentials, type TokenResponse } from '@/lib/keycast';
 import { KeycastSigner } from '@/lib/keycast/signer';
 
 interface KeycastContextValue {
@@ -29,6 +29,12 @@ interface KeycastProviderProps {
   redirectPath?: string;
 }
 
+// Get the redirect URI - needs to be stable
+function getRedirectUri(redirectPath: string): string {
+  if (typeof window === 'undefined') return '';
+  return window.location.origin + redirectPath;
+}
+
 export function KeycastProvider({ children, redirectPath = '/callback' }: KeycastProviderProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [credentials, setCredentials] = useState<StoredCredentials | null>(null);
@@ -36,32 +42,38 @@ export function KeycastProvider({ children, redirectPath = '/callback' }: Keycas
   const [rpc, setRpc] = useState<KeycastRpc | null>(null);
   const [signer, setSigner] = useState<KeycastSigner | null>(null);
 
-  // Get redirect URI based on current origin
-  const getRedirectUri = useCallback(() => {
-    if (typeof window === 'undefined') return '';
-    return window.location.origin + redirectPath;
+  // Create a stable client instance
+  const client = useMemo(() => {
+    const redirectUri = getRedirectUri(redirectPath);
+    return createKeycastClient({
+      serverUrl: 'https://login.divine.video',
+      clientId: 'divine',
+      redirectUri,
+      storage: typeof localStorage !== 'undefined' ? localStorage : undefined,
+    });
   }, [redirectPath]);
-
-  // Create the Keycast client
-  const getClient = useCallback(() => {
-    return createDivineKeycastClient(getRedirectUri());
-  }, [getRedirectUri]);
 
   // Initialize RPC and signer from credentials
   const initializeFromCredentials = useCallback(async (creds: StoredCredentials) => {
-    if (!creds.accessToken) return;
-
-    const newRpc = KeycastRpc.fromServerUrl('https://login.divine.video', creds.accessToken);
-    setRpc(newRpc);
-
-    const newSigner = new KeycastSigner(newRpc);
-    setSigner(newSigner);
+    if (!creds.accessToken) {
+      console.error('No access token in credentials');
+      return false;
+    }
 
     try {
+      const newRpc = KeycastRpc.fromServerUrl('https://login.divine.video', creds.accessToken);
+      setRpc(newRpc);
+
+      const newSigner = new KeycastSigner(newRpc);
+      setSigner(newSigner);
+
       const pk = await newRpc.getPublicKey();
       setPubkey(pk);
+      console.log('Initialized with pubkey:', pk.substring(0, 16) + '...');
+      return true;
     } catch (e) {
-      console.error('Failed to get public key:', e);
+      console.error('Failed to initialize from credentials:', e);
+      return false;
     }
   }, []);
 
@@ -69,12 +81,14 @@ export function KeycastProvider({ children, redirectPath = '/callback' }: Keycas
   useEffect(() => {
     const checkSession = async () => {
       try {
-        const client = getClient();
         const session = await client.oauth.getSessionWithRefresh();
         
         if (session && session.accessToken) {
+          console.log('Found existing session');
           setCredentials(session);
           await initializeFromCredentials(session);
+        } else {
+          console.log('No existing session found');
         }
       } catch (e) {
         console.error('Failed to check session:', e);
@@ -84,21 +98,21 @@ export function KeycastProvider({ children, redirectPath = '/callback' }: Keycas
     };
 
     checkSession();
-  }, [getClient, initializeFromCredentials]);
+  }, [client, initializeFromCredentials]);
 
   // Start OAuth login flow
   const login = useCallback(async () => {
-    const client = getClient();
     const { url } = await client.oauth.getAuthorizationUrl({
       defaultRegister: true,
     });
+    console.log('Redirecting to:', url);
     window.location.href = url;
-  }, [getClient]);
+  }, [client]);
 
   // Handle OAuth callback
   const handleCallback = useCallback(async (): Promise<boolean> => {
-    const client = getClient();
     const result = client.oauth.parseCallback(window.location.href);
+    console.log('Parsed callback result:', 'code' in result ? 'has code' : result);
 
     if ('error' in result) {
       console.error('OAuth error:', result.error, result.description);
@@ -106,26 +120,34 @@ export function KeycastProvider({ children, redirectPath = '/callback' }: Keycas
     }
 
     try {
-      const tokens = await client.oauth.exchangeCode(result.code);
+      console.log('Exchanging code for tokens...');
+      const tokens: TokenResponse = await client.oauth.exchangeCode(result.code);
+      console.log('Got tokens:', { 
+        hasBunkerUrl: !!tokens.bunker_url, 
+        hasAccessToken: !!tokens.access_token,
+        expiresIn: tokens.expires_in 
+      });
+      
       const creds = client.oauth.toStoredCredentials(tokens);
       setCredentials(creds);
-      await initializeFromCredentials(creds);
-      return true;
+      
+      const success = await initializeFromCredentials(creds);
+      return success;
     } catch (e) {
       console.error('Token exchange failed:', e);
       return false;
     }
-  }, [getClient, initializeFromCredentials]);
+  }, [client, initializeFromCredentials]);
 
   // Logout
   const logout = useCallback(() => {
-    const client = getClient();
     client.oauth.logout();
     setCredentials(null);
     setPubkey(null);
     setRpc(null);
     setSigner(null);
-  }, [getClient]);
+    console.log('Logged out');
+  }, [client]);
 
   const value: KeycastContextValue = {
     isAuthenticated: !!credentials && !!pubkey,
