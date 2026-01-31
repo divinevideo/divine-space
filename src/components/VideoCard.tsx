@@ -13,7 +13,8 @@ interface VideoCardProps {
   showAuthor?: boolean;
 }
 
-function formatCount(count: number): string {
+function formatCount(count: number | undefined | null): string {
+  if (count === undefined || count === null) return '0';
   if (count >= 1000000) {
     return (count / 1000000).toFixed(1) + 'M';
   }
