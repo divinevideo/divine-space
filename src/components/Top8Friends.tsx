@@ -4,18 +4,48 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
 import { useAuthor } from '@/hooks/useAuthor';
-import { useMySpaceProfile, type TopFriend } from '@/hooks/useMySpaceProfile';
-import { Users, Sparkles, Crown, Heart } from 'lucide-react';
+import { useMySpaceProfile, type TopFriend, type PresetStyle } from '@/hooks/useMySpaceProfile';
+import { Users, Sparkles, Crown, Heart, Star, Trophy, Medal, Video, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Top8FriendsProps {
   pubkey: string;
   isOwnProfile?: boolean;
   className?: string;
+  presetStyle?: PresetStyle;
 }
 
-export function Top8Friends({ pubkey, isOwnProfile, className }: Top8FriendsProps) {
+// Get rank icon based on position
+function getRankIcon(rank: number) {
+  switch (rank) {
+    case 1:
+      return <Crown className="h-4 w-4 text-yellow-500 fill-yellow-500" />;
+    case 2:
+      return <Medal className="h-3.5 w-3.5 text-gray-400" />;
+    case 3:
+      return <Medal className="h-3.5 w-3.5 text-amber-600" />;
+    default:
+      return null;
+  }
+}
+
+// Get rank colors
+function getRankColors(rank: number) {
+  switch (rank) {
+    case 1:
+      return "border-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.4)]";
+    case 2:
+      return "border-gray-400 shadow-[0_0_10px_rgba(156,163,175,0.3)]";
+    case 3:
+      return "border-amber-600 shadow-[0_0_10px_rgba(217,119,6,0.3)]";
+    default:
+      return "border-border";
+  }
+}
+
+export function Top8Friends({ pubkey, isOwnProfile, className, presetStyle }: Top8FriendsProps) {
   const { data: profile, isLoading } = useMySpaceProfile(pubkey);
 
   if (isLoading) {
@@ -23,56 +53,104 @@ export function Top8Friends({ pubkey, isOwnProfile, className }: Top8FriendsProp
   }
 
   const topFriends = profile?.topFriends || [];
+  const hasTop8 = topFriends.length > 0;
 
-  if (topFriends.length === 0 && !isOwnProfile) {
-    return null; // Don't show empty section on others' profiles
-  }
+  // Style variations based on preset
+  const headerStyle = presetStyle === 'scene-kid' 
+    ? 'xX Top 8 Xx' 
+    : presetStyle === 'y2k-princess' 
+    ? '~ My Top 8 ~'
+    : presetStyle === 'vine-legend'
+    ? 'My Vine Fam'
+    : presetStyle === 'kawaii-star'
+    ? '★ Best Friends ★'
+    : presetStyle === 'cyber-punk'
+    ? '// TOP_FRIENDS'
+    : `Top ${Math.min(topFriends.length || 8, 8)} Friends`;
 
   return (
-    <Card className={cn("myspace-card", className)}>
+    <Card className={cn("myspace-card overflow-hidden", className)}>
+      {/* Decorative header banner */}
+      <div className="h-2 w-full bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-500" />
+      
       <CardHeader className="pb-3">
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Users className="h-5 w-5 text-pink-500" />
-          <span className="gradient-text">Top {Math.min(topFriends.length || 8, 8)} Friends</span>
-          <Sparkles className="h-4 w-4 text-yellow-500" />
+        <CardTitle className="text-lg flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Users className="h-5 w-5 text-pink-500" />
+              {hasTop8 && (
+                <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+              )}
+            </div>
+            <span className={cn(
+              presetStyle === 'scene-kid' && "font-bold tracking-wider",
+              presetStyle === 'kawaii-star' && "text-pink-500",
+              presetStyle === 'cyber-punk' && "font-mono text-cyan-400",
+              !presetStyle && "gradient-text"
+            )}>
+              {headerStyle}
+            </span>
+            <Sparkles className="h-4 w-4 text-yellow-500 animate-pulse" />
+          </div>
+          {hasTop8 && (
+            <Badge variant="secondary" className="text-[10px]">
+              {topFriends.length}/8
+            </Badge>
+          )}
         </CardTitle>
       </CardHeader>
+      
       <CardContent>
         {topFriends.length === 0 ? (
-          <div className="text-center py-6 text-muted-foreground">
-            <Users className="h-10 w-10 mx-auto mb-2 opacity-50" />
-            <p className="text-sm">No Top 8 yet!</p>
-            {isOwnProfile && (
-              <Link to="/friends">
-                <Button variant="outline" size="sm" className="mt-3">
-                  Add Friends
-                </Button>
-              </Link>
-            )}
-          </div>
+          <EmptyTop8State isOwnProfile={isOwnProfile} presetStyle={presetStyle} />
         ) : (
-          <div className="grid grid-cols-4 gap-3">
-            {topFriends.slice(0, 8).map((friend, index) => (
-              <FriendSlot 
-                key={friend.pubkey} 
-                friend={friend} 
-                rank={index + 1}
-              />
-            ))}
-            {/* Fill empty slots with placeholders if less than 8 */}
-            {topFriends.length < 8 && isOwnProfile && (
-              Array.from({ length: Math.min(8 - topFriends.length, 4) }).map((_, i) => (
-                <EmptySlot key={`empty-${i}`} />
-              ))
-            )}
-          </div>
+          <>
+            <div className="grid grid-cols-4 gap-3">
+              {topFriends.slice(0, 8).map((friend, index) => (
+                <FriendSlot 
+                  key={friend.pubkey} 
+                  friend={friend} 
+                  rank={index + 1}
+                  presetStyle={presetStyle}
+                />
+              ))}
+              {/* Fill empty slots with placeholders if less than 8 */}
+              {topFriends.length < 8 && isOwnProfile && (
+                Array.from({ length: Math.min(8 - topFriends.length, 4) }).map((_, i) => (
+                  <EmptySlot key={`empty-${i}`} presetStyle={presetStyle} />
+                ))
+              )}
+            </div>
+            
+            {/* Decorative footer */}
+            <div className="mt-4 flex items-center justify-center gap-1 text-[10px] text-muted-foreground">
+              {['✦', '♡', '✦', '♡', '✦'].map((char, i) => (
+                <span 
+                  key={i} 
+                  className={cn(
+                    "animate-pulse",
+                    i % 2 === 0 ? "text-pink-500" : "text-cyan-500"
+                  )}
+                  style={{ animationDelay: `${i * 0.1}s` }}
+                >
+                  {char}
+                </span>
+              ))}
+            </div>
+          </>
         )}
       </CardContent>
     </Card>
   );
 }
 
-function FriendSlot({ friend, rank }: { friend: TopFriend; rank: number }) {
+interface FriendSlotProps {
+  friend: TopFriend;
+  rank: number;
+  presetStyle?: PresetStyle;
+}
+
+function FriendSlot({ friend, rank, presetStyle }: FriendSlotProps) {
   const { data: author, isLoading } = useAuthor(friend.pubkey);
   const npub = nip19.npubEncode(friend.pubkey);
   const metadata = author?.metadata;
@@ -86,59 +164,156 @@ function FriendSlot({ friend, rank }: { friend: TopFriend; rank: number }) {
     );
   }
 
+  const rankIcon = getRankIcon(rank);
+  const rankColors = getRankColors(rank);
+
   return (
-    <Link to={`/${npub}`} className="group text-center relative">
-      {/* Rank badge for #1 */}
-      {rank === 1 && (
-        <div className="absolute -top-1 -right-1 z-10">
-          <Crown className="h-4 w-4 text-yellow-500 fill-yellow-500 drop-shadow-lg" />
+    <Link to={`/${npub}`} className="group text-center relative block">
+      {/* Rank badge for top 3 */}
+      {rank <= 3 && (
+        <div className={cn(
+          "absolute -top-1 z-10",
+          rank === 1 ? "-right-1" : "right-0"
+        )}>
+          {rankIcon}
         </div>
       )}
       
       <div className="relative">
+        {/* Animated ring for #1 */}
+        {rank === 1 && (
+          <div className="absolute inset-0 -m-1 rounded-full bg-gradient-to-r from-yellow-400 via-pink-500 to-yellow-400 animate-spin-slow opacity-50 blur-sm" 
+               style={{ animationDuration: '3s' }} />
+        )}
+        
         <Avatar className={cn(
-          "h-14 w-14 mx-auto border-2 transition-all duration-300",
-          "group-hover:scale-110 group-hover:border-primary",
-          rank === 1 ? "border-yellow-500 glow-pink" : "border-border"
+          "h-14 w-14 mx-auto border-2 transition-all duration-300 relative",
+          "group-hover:scale-110",
+          rankColors,
+          rank > 3 && "group-hover:border-primary"
         )}>
-          <AvatarImage src={metadata?.picture} />
-          <AvatarFallback className="bg-primary/10 text-primary text-lg">
+          <AvatarImage src={metadata?.picture} className="object-cover" />
+          <AvatarFallback className={cn(
+            "text-lg font-bold",
+            rank === 1 ? "bg-gradient-to-br from-yellow-100 to-yellow-200 text-yellow-700" :
+            rank === 2 ? "bg-gradient-to-br from-gray-100 to-gray-200 text-gray-700" :
+            rank === 3 ? "bg-gradient-to-br from-amber-100 to-amber-200 text-amber-700" :
+            "bg-primary/10 text-primary"
+          )}>
             {(metadata?.name || 'A')[0].toUpperCase()}
           </AvatarFallback>
         </Avatar>
         
-        {/* Position number */}
+        {/* Position number badge */}
         <div className={cn(
-          "absolute -bottom-1 left-1/2 -translate-x-1/2 w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center",
-          rank === 1 
-            ? "bg-gradient-to-r from-yellow-500 to-orange-500 text-white" 
-            : "bg-muted text-muted-foreground"
+          "absolute -bottom-1 left-1/2 -translate-x-1/2 min-w-[20px] h-5 px-1 rounded-full text-[10px] font-bold flex items-center justify-center",
+          rank === 1 && "bg-gradient-to-r from-yellow-400 to-orange-500 text-white shadow-lg",
+          rank === 2 && "bg-gradient-to-r from-gray-300 to-gray-400 text-gray-800",
+          rank === 3 && "bg-gradient-to-r from-amber-500 to-amber-600 text-white",
+          rank > 3 && "bg-muted text-muted-foreground"
         )}>
-          {rank}
+          #{rank}
         </div>
       </div>
       
-      <p className="mt-2 text-xs truncate group-hover:text-primary transition-colors max-w-[70px] mx-auto">
-        {metadata?.display_name || metadata?.name || 'Anon'}
+      {/* Name with optional nickname */}
+      <div className="mt-2.5">
+        <p className={cn(
+          "text-xs truncate group-hover:text-primary transition-colors max-w-[70px] mx-auto font-medium",
+          rank === 1 && "text-yellow-500 group-hover:text-yellow-400"
+        )}>
+          {friend.nickname || metadata?.display_name || metadata?.name || 'Anon'}
+        </p>
+        {/* Show tiny role/title for top 3 */}
+        {rank === 1 && (
+          <p className="text-[9px] text-yellow-500/80 mt-0.5">bestie</p>
+        )}
+      </div>
+    </Link>
+  );
+}
+
+function EmptySlot({ presetStyle }: { presetStyle?: PresetStyle }) {
+  return (
+    <Link to="/friends" className="group text-center opacity-50 hover:opacity-80 transition-all">
+      <div className={cn(
+        "h-14 w-14 mx-auto rounded-full border-2 border-dashed flex items-center justify-center transition-all",
+        "group-hover:border-primary group-hover:bg-primary/5",
+        presetStyle === 'scene-kid' ? "border-pink-500/50" :
+        presetStyle === 'kawaii-star' ? "border-pink-300/50" :
+        presetStyle === 'cyber-punk' ? "border-cyan-500/50" :
+        "border-border"
+      )}>
+        <Plus className={cn(
+          "h-5 w-5 transition-colors",
+          "group-hover:text-primary",
+          presetStyle === 'scene-kid' ? "text-pink-500/50" :
+          presetStyle === 'kawaii-star' ? "text-pink-300" :
+          presetStyle === 'cyber-punk' ? "text-cyan-500/50" :
+          "text-muted-foreground"
+        )} />
+      </div>
+      <p className="mt-2 text-xs text-muted-foreground group-hover:text-primary transition-colors">
+        Add
       </p>
     </Link>
   );
 }
 
-function EmptySlot() {
+function EmptyTop8State({ isOwnProfile, presetStyle }: { isOwnProfile?: boolean; presetStyle?: PresetStyle }) {
+  const emptyMessages: Record<string, { title: string; subtitle: string }> = {
+    'scene-kid': { title: 'xX no friends yet Xx', subtitle: 'add ur besties!' },
+    'y2k-princess': { title: '~ empty ~', subtitle: 'add ur angels' },
+    'kawaii-star': { title: 'No friends yet!', subtitle: 'Find your squad~ ★' },
+    'cyber-punk': { title: '// NULL', subtitle: 'init_friends()' },
+    'vine-legend': { title: 'No fam yet', subtitle: 'Build your vine crew' },
+    'default': { title: 'No Top 8 yet!', subtitle: 'Add your best friends' },
+  };
+
+  const message = emptyMessages[presetStyle || 'default'] || emptyMessages.default;
+
   return (
-    <Link to="/friends" className="group text-center opacity-40 hover:opacity-70 transition-opacity">
-      <div className="h-14 w-14 mx-auto rounded-full border-2 border-dashed border-border flex items-center justify-center">
-        <Heart className="h-5 w-5 text-muted-foreground" />
+    <div className="text-center py-8">
+      <div className={cn(
+        "h-16 w-16 mx-auto rounded-full flex items-center justify-center mb-3",
+        "bg-gradient-to-br from-pink-500/20 to-purple-500/20"
+      )}>
+        <Users className="h-8 w-8 text-pink-500/60" />
       </div>
-      <p className="mt-2 text-xs text-muted-foreground">Add</p>
-    </Link>
+      <p className={cn(
+        "text-sm font-medium mb-1",
+        presetStyle === 'scene-kid' && "tracking-wider",
+        presetStyle === 'cyber-punk' && "font-mono text-cyan-400"
+      )}>
+        {message.title}
+      </p>
+      <p className="text-xs text-muted-foreground mb-4">{message.subtitle}</p>
+      {isOwnProfile && (
+        <Link to="/friends">
+          <Button variant="outline" size="sm" className="gap-2 group">
+            <Heart className="h-4 w-4 group-hover:text-pink-500 transition-colors" />
+            <span>Find Friends</span>
+          </Button>
+        </Link>
+      )}
+      
+      {/* Decorative empty slots preview */}
+      <div className="flex justify-center gap-2 mt-4">
+        {[1, 2, 3, 4].map((i) => (
+          <div 
+            key={i}
+            className="h-8 w-8 rounded-full border border-dashed border-border/50 opacity-30"
+          />
+        ))}
+      </div>
+    </div>
   );
 }
 
 function Top8FriendsSkeleton({ className }: { className?: string }) {
   return (
-    <Card className={cn("myspace-card", className)}>
+    <Card className={cn("myspace-card overflow-hidden", className)}>
+      <div className="h-2 w-full bg-gradient-to-r from-pink-500/30 via-purple-500/30 to-cyan-500/30 animate-pulse" />
       <CardHeader className="pb-3">
         <Skeleton className="h-6 w-32" />
       </CardHeader>
@@ -146,7 +321,7 @@ function Top8FriendsSkeleton({ className }: { className?: string }) {
         <div className="grid grid-cols-4 gap-3">
           {Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="text-center">
-              <Skeleton className="h-14 w-14 rounded-full mx-auto mb-1" />
+              <Skeleton className="h-14 w-14 rounded-full mx-auto mb-2" />
               <Skeleton className="h-3 w-12 mx-auto" />
             </div>
           ))}

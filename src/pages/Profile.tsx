@@ -5,10 +5,12 @@ import { useDivineUser, useDivineUserVideosInfinite } from '@/hooks/useDivineUse
 import { useIsFollowing, useToggleFollow } from '@/hooks/useDivineSocial';
 import { useKeycast } from '@/contexts/KeycastContext';
 import { useMySpaceProfile, getPresetStyleInfo } from '@/hooks/useMySpaceProfile';
+import { useUserPostsInfinite } from '@/hooks/useUserPosts';
 import { VideoCard, VideoCardSkeleton } from '@/components/VideoCard';
 import { Top8Friends } from '@/components/Top8Friends';
 import { ProfileMusicPlayer } from '@/components/ProfileMusicPlayer';
-import { MoodWidget, StatusWidget, QuoteWidget, ProfileBlings, PresetBadge, ClaimProfileBanner, MusicSuggestion, ThemedDivider, VisitorMessage } from '@/components/ProfileWidgets';
+import { NoteContent } from '@/components/NoteContent';
+import { MoodWidget, StatusWidget, QuoteWidget, ProfileBlings, PresetBadge, ClaimProfileBanner, MusicSuggestion, ThemedDivider, VisitorMessage, InterestsCloud, BlinkieBar } from '@/components/ProfileWidgets';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -19,9 +21,6 @@ import {
   UserPlus, 
   UserMinus, 
   Video, 
-  Heart, 
-  MessageCircle, 
-  Repeat2,
   ExternalLink,
   Users,
   Sparkles,
@@ -29,9 +28,10 @@ import {
   Edit,
   Zap,
   Globe,
-  Music,
   Palette,
-  Wand2
+  Eye,
+  Link as LinkIcon,
+  FileText
 } from 'lucide-react';
 import { useInView } from 'react-intersection-observer';
 import { useEffect } from 'react';
@@ -67,6 +67,14 @@ export default function Profile({ pubkey }: ProfileProps) {
     fetchNextPage,
     isFetchingNextPage 
   } = useDivineUserVideosInfinite(pubkey);
+
+  const {
+    data: postsData,
+    isLoading: postsLoading,
+    hasNextPage: hasMorePosts,
+    fetchNextPage: fetchMorePosts,
+    isFetchingNextPage: isFetchingMorePosts
+  } = useUserPostsInfinite(pubkey);
 
   const { ref, inView } = useInView({ threshold: 0 });
 
@@ -111,12 +119,8 @@ export default function Profile({ pubkey }: ProfileProps) {
     total_comments: divineUser.stats?.total_comments ?? 0,
     total_reposts: divineUser.stats?.total_reposts ?? 0
   };
-  const engagement = { 
-    avg_reactions_per_video: divineUser.engagement?.avg_reactions_per_video ?? 0, 
-    avg_comments_per_video: divineUser.engagement?.avg_comments_per_video ?? 0, 
-    engagement_rate: divineUser.engagement?.engagement_rate ?? 0
-  };
   const videos = videosData?.pages.flat() ?? [];
+  const posts = postsData?.pages.flat() ?? [];
 
   // Format NIP-05 for divine.video domain
   const formatNip05 = (nip05: string | undefined): string | null => {
@@ -337,75 +341,88 @@ export default function Profile({ pubkey }: ProfileProps) {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
           {/* Left Column - Top 8 Friends & Stats */}
           <div className="lg:col-span-1 space-y-6">
+            {/* Blinkie decoration */}
+            {myspaceProfile?.presetBlinkie && (
+              <BlinkieBar 
+                pattern={myspaceProfile.presetBlinkie.pattern}
+                colors={myspaceProfile.presetBlinkie.colors}
+              />
+            )}
+
             {/* Top 8 Friends - THE classic MySpace feature! */}
             <Top8Friends 
               pubkey={pubkey} 
               isOwnProfile={isOwnProfile}
+              presetStyle={myspaceProfile?.presetStyle}
             />
 
-            {/* Stats Cards */}
-            <div className="grid grid-cols-2 gap-3">
-              <Card className="myspace-card text-center">
-                <CardContent className="py-4">
-                  <div className="text-2xl font-bold text-primary">{formatNumber(stats.video_count)}</div>
-                  <div className="text-xs text-muted-foreground flex items-center justify-center gap-1 mt-1">
-                    <Video className="h-3 w-3" />
-                    Videos
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card className="myspace-card text-center">
-                <CardContent className="py-4">
-                  <div className="text-2xl font-bold text-pink-500">{formatNumber(social.follower_count)}</div>
-                  <div className="text-xs text-muted-foreground flex items-center justify-center gap-1 mt-1">
-                    <Users className="h-3 w-3" />
-                    Followers
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card className="myspace-card text-center">
-                <CardContent className="py-4">
-                  <div className="text-2xl font-bold text-cyan-500">{formatNumber(social.following_count)}</div>
-                  <div className="text-xs text-muted-foreground flex items-center justify-center gap-1 mt-1">
-                    <Users className="h-3 w-3" />
-                    Following
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card className="myspace-card text-center">
-                <CardContent className="py-4">
-                  <div className="text-2xl font-bold text-yellow-500">{formatNumber(stats.total_reactions)}</div>
-                  <div className="text-xs text-muted-foreground flex items-center justify-center gap-1 mt-1">
-                    <Heart className="h-3 w-3" />
-                    Likes
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+            {/* Interests Cloud */}
+            {myspaceProfile?.interests && myspaceProfile.interests.length > 0 && (
+              <InterestsCloud 
+                interests={myspaceProfile.interests}
+                style={myspaceProfile.presetStyle}
+              />
+            )}
 
-            {/* Engagement Stats */}
+            {/* Stats Sidebar */}
             <Card className="myspace-card">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-primary" />
-                  Engagement
+                  Stats
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Avg. Likes/Video</span>
-                  <span className="font-medium">{engagement.avg_reactions_per_video.toFixed(1)}</span>
+              <CardContent className="space-y-3">
+                <div className="flex items-center justify-between py-2 border-b border-border/50">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Video className="h-4 w-4" />
+                    <span className="text-sm">Videos</span>
+                  </div>
+                  <span className="font-bold text-primary">{formatNumber(stats.video_count)}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Avg. Comments</span>
-                  <span className="font-medium">{engagement.avg_comments_per_video.toFixed(1)}</span>
+                
+                <div className="flex items-center justify-between py-2 border-b border-border/50">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Users className="h-4 w-4" />
+                    <span className="text-sm">Followers</span>
+                  </div>
+                  <span className="font-bold text-pink-500">{formatNumber(social.follower_count)}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Engagement Rate</span>
-                  <span className="font-medium">{(engagement.engagement_rate * 100).toFixed(1)}%</span>
+                
+                <div className="flex items-center justify-between py-2 border-b border-border/50">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Users className="h-4 w-4" />
+                    <span className="text-sm">Following</span>
+                  </div>
+                  <span className="font-bold text-cyan-500">{formatNumber(social.following_count)}</span>
+                </div>
+
+                <div className="flex items-center justify-between py-2 border-b border-border/50">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Eye className="h-4 w-4" />
+                    <span className="text-sm">Views</span>
+                  </div>
+                  <span className="font-bold text-purple-500">{formatNumber(stats.total_reactions)}</span>
+                </div>
+                
+                <div className="flex items-center justify-between py-2">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <LinkIcon className="h-4 w-4" />
+                    <span className="text-sm">Links</span>
+                  </div>
+                  {profile.website ? (
+                    <a 
+                      href={profile.website}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium text-primary hover:underline flex items-center gap-1 text-sm truncate max-w-[120px]"
+                    >
+                      {profile.website.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]}
+                      <ExternalLink className="h-3 w-3 flex-shrink-0" />
+                    </a>
+                  ) : (
+                    <span className="text-muted-foreground text-sm">—</span>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -432,14 +449,18 @@ export default function Profile({ pubkey }: ProfileProps) {
             <VisitorMessage className="mt-4" />
           </div>
 
-          {/* Right Column - Videos */}
+          {/* Right Column - Videos & Posts */}
           <div className="lg:col-span-2">
-            {/* Videos */}
+            {/* Videos & Posts Tabs */}
             <Tabs defaultValue="videos">
               <TabsList className="bg-muted/50 mb-6">
                 <TabsTrigger value="videos" className="gap-2">
                   <Video className="h-4 w-4" />
                   Videos ({stats.video_count})
+                </TabsTrigger>
+                <TabsTrigger value="posts" className="gap-2">
+                  <FileText className="h-4 w-4" />
+                  Posts {posts.length > 0 && `(${posts.length}${hasMorePosts ? '+' : ''})`}
                 </TabsTrigger>
               </TabsList>
 
@@ -482,6 +503,77 @@ export default function Profile({ pubkey }: ProfileProps) {
                       <Video className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
                       <p className="text-muted-foreground">
                         No videos yet
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
+              </TabsContent>
+
+              <TabsContent value="posts">
+                {postsLoading ? (
+                  <div className="space-y-4">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                      <Card key={i} className="myspace-card">
+                        <CardContent className="py-4">
+                          <div className="space-y-2">
+                            <Skeleton className="h-4 w-full" />
+                            <Skeleton className="h-4 w-4/5" />
+                            <Skeleton className="h-4 w-3/5" />
+                          </div>
+                          <Skeleton className="h-3 w-24 mt-3" />
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : posts.length > 0 ? (
+                  <>
+                    <div className="space-y-4">
+                      {posts.map((post) => (
+                        <Card key={post.id} className="myspace-card hover:shadow-md transition-shadow">
+                          <CardContent className="py-4">
+                            <div className="whitespace-pre-wrap break-words text-sm">
+                              <NoteContent event={post} />
+                            </div>
+                            <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
+                              <time dateTime={new Date(post.created_at * 1000).toISOString()}>
+                                {new Date(post.created_at * 1000).toLocaleDateString(undefined, {
+                                  year: 'numeric',
+                                  month: 'short',
+                                  day: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </time>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+
+                    {/* Load more posts */}
+                    <div className="flex justify-center py-8">
+                      {isFetchingMorePosts ? (
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                          Loading more...
+                        </div>
+                      ) : hasMorePosts ? (
+                        <Button variant="outline" onClick={() => fetchMorePosts()}>
+                          Load More Posts
+                        </Button>
+                      ) : posts.length > 0 ? (
+                        <p className="text-muted-foreground text-sm">
+                          That's all the posts!
+                        </p>
+                      ) : null}
+                    </div>
+                  </>
+                ) : (
+                  <Card className="border-dashed">
+                    <CardContent className="py-16 text-center">
+                      <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                      <p className="text-muted-foreground">
+                        No posts yet
                       </p>
                     </CardContent>
                   </Card>

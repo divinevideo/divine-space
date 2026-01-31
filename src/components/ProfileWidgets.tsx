@@ -511,3 +511,376 @@ export function VisitorMessage({ className }: { className?: string }) {
     </div>
   );
 }
+
+// ========================================
+// DiVine Space Enhanced Widgets
+// ========================================
+
+// Blinkie decoration bar
+interface BlinkieBarProps {
+  pattern?: string;
+  colors?: string[];
+  className?: string;
+}
+
+export function BlinkieBar({ pattern = '★ ☆ ★ ☆ ★', colors = ['#ec4899', '#06b6d4'], className }: BlinkieBarProps) {
+  const chars = pattern.split(' ');
+  
+  return (
+    <div className={cn(
+      "flex items-center justify-center gap-1 py-2 overflow-hidden",
+      className
+    )}>
+      {chars.map((char, i) => (
+        <span
+          key={i}
+          className="animate-glitter text-sm"
+          style={{ 
+            color: colors[i % colors.length],
+            animationDelay: `${i * 0.2}s`
+          }}
+        >
+          {char}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+// Interests/Tags cloud with DiVine styling
+interface InterestsCloudProps {
+  interests?: string[];
+  className?: string;
+  style?: PresetStyle;
+}
+
+export function InterestsCloud({ interests, className, style }: InterestsCloudProps) {
+  if (!interests || interests.length === 0) return null;
+
+  const tagStyle = style === 'scene-kid' 
+    ? 'bg-pink-500/20 text-pink-300 border-pink-500/30 hover:bg-pink-500/30'
+    : style === 'kawaii-star'
+    ? 'bg-pink-300/20 text-pink-400 border-pink-300/30 hover:bg-pink-300/30'
+    : style === 'cyber-punk'
+    ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30 hover:bg-cyan-500/30'
+    : style === 'vine-legend'
+    ? 'bg-green-500/20 text-green-300 border-green-500/30 hover:bg-green-500/30'
+    : style === 'dark-romantic'
+    ? 'bg-red-900/20 text-red-300 border-red-900/30 hover:bg-red-900/30'
+    : 'bg-primary/20 text-primary border-primary/30 hover:bg-primary/30';
+
+  return (
+    <Card className={cn("myspace-card", className)}>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-pink-500" />
+          <span className="gradient-text">Interests</span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="flex flex-wrap gap-2">
+          {interests.map((interest, i) => (
+            <span
+              key={i}
+              className={cn(
+                "px-2.5 py-1 rounded-full text-xs font-medium border transition-colors cursor-default",
+                tagStyle
+              )}
+            >
+              {interest}
+            </span>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Vine-style video count badge
+interface VideoCountBadgeProps {
+  count: number;
+  type?: 'videos' | 'vines' | 'shorts';
+  className?: string;
+}
+
+export function VideoCountBadge({ count, type = 'videos', className }: VideoCountBadgeProps) {
+  const icons = {
+    videos: '🎬',
+    vines: '🍃',
+    shorts: '📱',
+  };
+
+  return (
+    <div className={cn(
+      "inline-flex items-center gap-2 px-3 py-1.5 rounded-full",
+      "bg-gradient-to-r from-purple-500/20 to-pink-500/20",
+      "border border-primary/30",
+      className
+    )}>
+      <span>{icons[type]}</span>
+      <span className="font-bold text-sm">{count}</span>
+      <span className="text-xs text-muted-foreground capitalize">{type}</span>
+    </div>
+  );
+}
+
+// Online status indicator
+interface OnlineStatusProps {
+  isOnline?: boolean;
+  lastSeen?: number;
+  className?: string;
+}
+
+export function OnlineStatus({ isOnline, lastSeen, className }: OnlineStatusProps) {
+  return (
+    <div className={cn("flex items-center gap-2 text-sm", className)}>
+      <div className={cn(
+        "w-2.5 h-2.5 rounded-full",
+        isOnline 
+          ? "bg-green-500 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]" 
+          : "bg-gray-500"
+      )} />
+      <span className={cn(
+        "font-medium",
+        isOnline ? "text-green-500" : "text-muted-foreground"
+      )}>
+        {isOnline ? 'Online Now' : lastSeen ? `Last seen ${formatDistanceToNow(new Date(lastSeen * 1000), { addSuffix: true })}` : 'Offline'}
+      </span>
+    </div>
+  );
+}
+
+// Profile view counter with animation
+interface ProfileViewCounterProps {
+  views: number;
+  className?: string;
+}
+
+export function ProfileViewCounter({ views, className }: ProfileViewCounterProps) {
+  const [displayViews, setDisplayViews] = useState(0);
+
+  useEffect(() => {
+    // Animate counter on mount
+    const duration = 1500;
+    const steps = 40;
+    const increment = views / steps;
+    let current = 0;
+
+    const timer = setInterval(() => {
+      current += increment;
+      if (current >= views) {
+        setDisplayViews(views);
+        clearInterval(timer);
+      } else {
+        setDisplayViews(Math.floor(current));
+      }
+    }, duration / steps);
+
+    return () => clearInterval(timer);
+  }, [views]);
+
+  return (
+    <div className={cn(
+      "text-center p-4 rounded-xl",
+      "bg-gradient-to-br from-purple-500/10 via-pink-500/10 to-cyan-500/10",
+      "border border-primary/20",
+      className
+    )}>
+      <div className="flex items-center justify-center gap-2 mb-2">
+        <Eye className="h-5 w-5 text-primary animate-pulse" />
+        <span className="text-xs text-muted-foreground uppercase tracking-widest">Profile Views</span>
+      </div>
+      <div className="font-mono text-3xl font-bold gradient-text">
+        {displayViews.toLocaleString()}
+      </div>
+      <p className="text-[10px] text-muted-foreground mt-1 flex items-center justify-center gap-1">
+        <Star className="h-3 w-3 text-yellow-500" />
+        You're visitor #{displayViews.toLocaleString()}!
+        <Star className="h-3 w-3 text-yellow-500" />
+      </p>
+    </div>
+  );
+}
+
+// Vine-style loop indicator
+export function VineLoopBadge({ className }: { className?: string }) {
+  return (
+    <div className={cn(
+      "inline-flex items-center gap-1.5 px-2 py-1 rounded-full",
+      "bg-green-500/20 border border-green-500/30",
+      "text-green-400 text-xs font-medium",
+      className
+    )}>
+      <span className="animate-spin-slow">🔄</span>
+      <span>Loop</span>
+    </div>
+  );
+}
+
+// DiVine creator badge
+interface CreatorBadgeProps {
+  tier?: 'new' | 'rising' | 'verified' | 'legend';
+  className?: string;
+}
+
+export function CreatorBadge({ tier = 'new', className }: CreatorBadgeProps) {
+  const tiers = {
+    new: { label: 'New Creator', emoji: '🌱', colors: 'from-green-500/20 to-emerald-500/20 border-green-500/30 text-green-400' },
+    rising: { label: 'Rising Star', emoji: '⭐', colors: 'from-yellow-500/20 to-orange-500/20 border-yellow-500/30 text-yellow-400' },
+    verified: { label: 'Verified', emoji: '✓', colors: 'from-blue-500/20 to-cyan-500/20 border-blue-500/30 text-blue-400' },
+    legend: { label: 'DiVine Legend', emoji: '👑', colors: 'from-purple-500/20 to-pink-500/20 border-purple-500/30 text-purple-400' },
+  };
+
+  const { label, emoji, colors } = tiers[tier];
+
+  return (
+    <div className={cn(
+      "inline-flex items-center gap-1.5 px-3 py-1 rounded-full",
+      `bg-gradient-to-r ${colors}`,
+      "border text-xs font-medium",
+      className
+    )}>
+      <span>{emoji}</span>
+      <span>{label}</span>
+    </div>
+  );
+}
+
+// Glitter text effect
+interface GlitterTextProps {
+  text: string;
+  className?: string;
+}
+
+export function GlitterText({ text, className }: GlitterTextProps) {
+  return (
+    <span className={cn("relative inline-block", className)}>
+      <span className="relative z-10">{text}</span>
+      <span 
+        className="absolute inset-0 bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-500 bg-clip-text text-transparent animate-glitter blur-[1px]"
+        aria-hidden
+      >
+        {text}
+      </span>
+    </span>
+  );
+}
+
+// Scene kid style "about me" box
+interface SceneAboutBoxProps {
+  text: string;
+  className?: string;
+}
+
+export function SceneAboutBox({ text, className }: SceneAboutBoxProps) {
+  return (
+    <Card className={cn("myspace-card overflow-hidden", className)}>
+      {/* Scene kid header */}
+      <div className="h-1 w-full bg-gradient-to-r from-pink-500 via-black to-pink-500" />
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <span className="text-pink-500">x</span>
+          <span>About Me</span>
+          <span className="text-pink-500">x</span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="text-sm whitespace-pre-wrap">{text}</p>
+      </CardContent>
+      {/* Decorative footer */}
+      <div className="px-4 pb-3">
+        <BlinkieBar pattern="x X x X x" colors={['#000000', '#ec4899']} />
+      </div>
+    </Card>
+  );
+}
+
+// Y2K style decorative box
+interface Y2KBoxProps {
+  children: React.ReactNode;
+  className?: string;
+}
+
+export function Y2KBox({ children, className }: Y2KBoxProps) {
+  return (
+    <div className={cn(
+      "relative p-4 rounded-xl overflow-hidden",
+      "bg-gradient-to-br from-pink-200/20 via-purple-200/20 to-cyan-200/20",
+      "border-2 border-pink-300/30",
+      className
+    )}>
+      {/* Butterfly decorations */}
+      <span className="absolute top-1 left-2 text-sm animate-bounce-gentle">🦋</span>
+      <span className="absolute top-1 right-2 text-sm animate-bounce-gentle" style={{ animationDelay: '0.5s' }}>🦋</span>
+      {children}
+    </div>
+  );
+}
+
+// Kawaii star decoration frame
+interface KawaiiFrameProps {
+  children: React.ReactNode;
+  className?: string;
+}
+
+export function KawaiiFrame({ children, className }: KawaiiFrameProps) {
+  return (
+    <div className={cn(
+      "relative p-4",
+      className
+    )}>
+      {/* Corner stars */}
+      <span className="absolute top-0 left-0 text-yellow-400 animate-glitter">✧</span>
+      <span className="absolute top-0 right-0 text-pink-400 animate-glitter" style={{ animationDelay: '0.3s' }}>✧</span>
+      <span className="absolute bottom-0 left-0 text-pink-400 animate-glitter" style={{ animationDelay: '0.6s' }}>✧</span>
+      <span className="absolute bottom-0 right-0 text-yellow-400 animate-glitter" style={{ animationDelay: '0.9s' }}>✧</span>
+      {children}
+    </div>
+  );
+}
+
+// Featured video slot for profile
+interface FeaturedVideoSlotProps {
+  videoId?: string;
+  title?: string;
+  thumbnail?: string;
+  className?: string;
+}
+
+export function FeaturedVideoSlot({ videoId, title, thumbnail, className }: FeaturedVideoSlotProps) {
+  if (!videoId) {
+    return (
+      <div className={cn(
+        "aspect-video rounded-xl border-2 border-dashed border-border/50",
+        "flex items-center justify-center",
+        "bg-muted/20",
+        className
+      )}>
+        <div className="text-center text-muted-foreground">
+          <Sparkles className="h-8 w-8 mx-auto mb-2 opacity-50" />
+          <p className="text-sm">Pin a video here!</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <Link to={`/video/${videoId}`} className={cn("block group", className)}>
+      <div className="relative aspect-video rounded-xl overflow-hidden border border-primary/30">
+        <img 
+          src={thumbnail || '/placeholder-video.jpg'} 
+          alt={title || 'Featured video'}
+          className="w-full h-full object-cover transition-transform group-hover:scale-105"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
+          <p className="text-white text-sm font-medium truncate">{title || 'Featured Video'}</p>
+        </div>
+        {/* Pinned badge */}
+        <div className="absolute top-2 left-2 px-2 py-1 rounded-full bg-primary/90 text-primary-foreground text-xs font-medium flex items-center gap-1">
+          <Star className="h-3 w-3" />
+          Featured
+        </div>
+      </div>
+    </Link>
+  );
+}

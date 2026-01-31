@@ -675,3 +675,180 @@
   25% { transform: translateY(-55%) rotate(5deg); }
   75% { transform: translateY(-45%) rotate(-5deg); }
 }
+
+/* ========================================
+   DiVine + Vine Revival Themes
+   ======================================== */
+
+/* Theme: Vine Revival */
+.theme-vine {
+  --background: 160 50% 4%;
+  --foreground: 160 30% 95%;
+  --card: 160 50% 8%;
+  --primary: 160 100% 37%;
+  --accent: 160 100% 50%;
+}
+
+.theme-vine .myspace-card {
+  background: linear-gradient(135deg,
+    hsl(160 100% 37% / 0.1) 0%,
+    hsl(160 50% 4% / 0.3) 50%,
+    hsl(160 100% 37% / 0.1) 100%
+  );
+}
+
+.theme-vine .myspace-card::before {
+  background: linear-gradient(135deg,
+    hsl(160 100% 37%) 0%,
+    hsl(160 50% 20%) 50%,
+    hsl(160 100% 37%) 100%
+  );
+}
+
+.theme-vine .gradient-text {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-green-400 via-emerald-500 to-green-400;
+}
+
+/* Theme: TikTok/FYP Style */
+.theme-tiktok {
+  --background: 0 0% 5%;
+  --foreground: 0 0% 95%;
+  --card: 0 0% 10%;
+  --primary: 340 100% 50%;
+  --accent: 180 100% 50%;
+}
+
+.theme-tiktok .myspace-card {
+  background: linear-gradient(135deg,
+    hsl(340 100% 50% / 0.1) 0%,
+    hsl(180 100% 50% / 0.05) 50%,
+    hsl(340 100% 50% / 0.1) 100%
+  );
+}
+
+.theme-tiktok .myspace-card::before {
+  background: linear-gradient(135deg,
+    hsl(340 100% 50%) 0%,
+    hsl(180 100% 50%) 100%
+  );
+}
+
+.theme-tiktok .gradient-text {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-pink-500 via-red-500 to-cyan-400;
+}
+
+/* Theme: Grunge */
+.theme-grunge {
+  --background: 30 20% 6%;
+  --foreground: 30 10% 85%;
+  --card: 30 20% 10%;
+  --primary: 30 70% 50%;
+  --accent: 0 70% 45%;
+}
+
+.theme-grunge .myspace-card {
+  background: linear-gradient(135deg,
+    hsl(30 50% 15% / 0.3) 0%,
+    hsl(0 50% 10% / 0.2) 50%,
+    hsl(30 50% 15% / 0.3) 100%
+  );
+  border: 1px solid hsl(30 30% 20%);
+}
+
+.theme-grunge .gradient-text {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-orange-600 via-red-700 to-orange-600;
+}
+
+/* Theme: Cottagecore */
+.theme-cottagecore {
+  --background: 45 30% 95%;
+  --foreground: 45 30% 15%;
+  --card: 0 0% 100%;
+  --primary: 350 70% 60%;
+  --accent: 120 40% 50%;
+}
+
+.theme-cottagecore .myspace-card {
+  background: linear-gradient(135deg,
+    hsl(350 70% 90% / 0.3) 0%,
+    hsl(120 40% 90% / 0.2) 50%,
+    hsl(45 50% 90% / 0.3) 100%
+  );
+  border: 2px solid hsl(350 50% 80%);
+}
+
+.theme-cottagecore .gradient-text {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-pink-400 via-rose-400 to-amber-400;
+}
+
+/* Glitter/Sparkle text effect */
+.glitter-text {
+  background: linear-gradient(
+    90deg,
+    #fff 0%,
+    #ffd700 25%,
+    #fff 50%,
+    #ffd700 75%,
+    #fff 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: glitter-shift 2s linear infinite;
+}
+
+@keyframes glitter-shift {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Vine-style loop badge glow */
+.vine-loop-glow {
+  box-shadow: 0 0 10px hsl(160 100% 37% / 0.5),
+              0 0 20px hsl(160 100% 37% / 0.3);
+}
+
+/* Creator tier badges */
+.badge-legend {
+  background: linear-gradient(135deg, 
+    hsl(280 100% 50%) 0%,
+    hsl(330 100% 50%) 50%,
+    hsl(280 100% 50%) 100%
+  );
+  background-size: 200% 200%;
+  animation: badge-shimmer 3s ease infinite;
+}
+
+@keyframes badge-shimmer {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Enhanced blinkie animation */
+.blinkie-bar > span {
+  display: inline-block;
+  animation: blinkie-pulse 1s ease-in-out infinite;
+}
+
+@keyframes blinkie-pulse {
+  0%, 100% { 
+    opacity: 1; 
+    transform: scale(1);
+  }
+  50% { 
+    opacity: 0.5; 
+    transform: scale(0.9);
+  }
+}
+
+/* Profile card hover effects */
+.profile-card-interactive {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.profile-card-interactive:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 40px -10px hsl(var(--primary) / 0.3);
+}
