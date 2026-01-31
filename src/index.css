@@ -256,3 +256,241 @@
     transform: translateY(-4px);
   }
 }
+
+/* ========================================
+   MySpace Profile Theme System
+   ======================================== */
+
+/* Theme: Scene/Emo */
+.theme-scene {
+  --background: 0 0% 5%;
+  --foreground: 0 0% 95%;
+  --card: 0 0% 8%;
+  --primary: 330 100% 50%;
+  --accent: 0 0% 20%;
+}
+
+.theme-scene .myspace-card {
+  background: linear-gradient(135deg,
+    hsl(330 100% 50% / 0.15) 0%,
+    hsl(0 0% 0% / 0.3) 50%,
+    hsl(330 100% 50% / 0.1) 100%
+  );
+}
+
+.theme-scene .myspace-card::before {
+  background: linear-gradient(135deg,
+    hsl(330 100% 50%) 0%,
+    hsl(0 0% 30%) 50%,
+    hsl(330 100% 50%) 100%
+  );
+}
+
+.theme-scene .gradient-text {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-pink-500 via-red-500 to-pink-500;
+}
+
+/* Theme: Y2K */
+.theme-y2k {
+  --background: 260 50% 10%;
+  --foreground: 180 100% 90%;
+  --card: 260 50% 15%;
+  --primary: 180 100% 50%;
+  --accent: 300 100% 60%;
+}
+
+.theme-y2k .myspace-card {
+  background: linear-gradient(135deg,
+    hsl(180 100% 50% / 0.1) 0%,
+    hsl(300 100% 60% / 0.1) 50%,
+    hsl(60 100% 50% / 0.1) 100%
+  );
+}
+
+.theme-y2k .myspace-card::before {
+  background: linear-gradient(135deg,
+    hsl(180 100% 50%) 0%,
+    hsl(300 100% 60%) 50%,
+    hsl(60 100% 50%) 100%
+  );
+}
+
+.theme-y2k .gradient-text {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-fuchsia-500 to-yellow-400;
+}
+
+/* Theme: Gothic */
+.theme-gothic {
+  --background: 270 20% 5%;
+  --foreground: 270 10% 85%;
+  --card: 270 20% 10%;
+  --primary: 270 50% 50%;
+  --accent: 0 70% 40%;
+}
+
+.theme-gothic .myspace-card {
+  background: linear-gradient(135deg,
+    hsl(270 50% 30% / 0.2) 0%,
+    hsl(0 70% 20% / 0.2) 50%,
+    hsl(270 50% 30% / 0.2) 100%
+  );
+}
+
+.theme-gothic .myspace-card::before {
+  background: linear-gradient(135deg,
+    hsl(270 50% 40%) 0%,
+    hsl(0 70% 30%) 50%,
+    hsl(270 50% 40%) 100%
+  );
+}
+
+.theme-gothic .gradient-text {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-purple-600 via-red-700 to-purple-600;
+}
+
+/* Theme: Kawaii */
+.theme-kawaii {
+  --background: 330 50% 95%;
+  --foreground: 330 50% 20%;
+  --card: 0 0% 100%;
+  --primary: 330 100% 70%;
+  --accent: 180 100% 70%;
+}
+
+.theme-kawaii .myspace-card {
+  background: linear-gradient(135deg,
+    hsl(330 100% 80% / 0.3) 0%,
+    hsl(180 100% 80% / 0.2) 50%,
+    hsl(60 100% 80% / 0.3) 100%
+  );
+}
+
+.theme-kawaii .myspace-card::before {
+  background: linear-gradient(135deg,
+    hsl(330 100% 70%) 0%,
+    hsl(180 100% 70%) 50%,
+    hsl(60 100% 70%) 100%
+  );
+}
+
+.theme-kawaii .gradient-text {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-pink-400 via-purple-400 to-cyan-400;
+}
+
+/* Theme: Neon/Cyberpunk */
+.theme-neon {
+  --background: 240 30% 5%;
+  --foreground: 180 100% 90%;
+  --card: 240 30% 10%;
+  --primary: 180 100% 50%;
+  --accent: 320 100% 60%;
+}
+
+.theme-neon .myspace-card {
+  background: linear-gradient(135deg,
+    hsl(180 100% 50% / 0.1) 0%,
+    hsl(320 100% 50% / 0.1) 50%,
+    hsl(60 100% 50% / 0.1) 100%
+  );
+  box-shadow: 0 0 20px hsl(180 100% 50% / 0.2);
+}
+
+.theme-neon .myspace-card::before {
+  background: linear-gradient(135deg,
+    hsl(180 100% 50%) 0%,
+    hsl(320 100% 60%) 50%,
+    hsl(60 100% 50%) 100%
+  );
+}
+
+.theme-neon .gradient-text {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-pink-500 to-yellow-400;
+  text-shadow: 0 0 20px hsl(180 100% 50% / 0.5);
+}
+
+/* Theme: Retro 90s */
+.theme-retro {
+  --background: 45 30% 95%;
+  --foreground: 45 30% 15%;
+  --card: 0 0% 100%;
+  --primary: 200 100% 40%;
+  --accent: 45 100% 50%;
+}
+
+.theme-retro .myspace-card {
+  background: linear-gradient(135deg,
+    hsl(200 100% 50% / 0.15) 0%,
+    hsl(45 100% 50% / 0.15) 50%,
+    hsl(350 100% 50% / 0.15) 100%
+  );
+  border: 3px solid;
+  border-image: linear-gradient(135deg, hsl(200 100% 50%), hsl(45 100% 50%), hsl(350 100% 50%)) 1;
+}
+
+.theme-retro .gradient-text {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-500 via-yellow-500 to-red-500;
+}
+
+/* Theme: Space/Cosmic */
+.theme-space {
+  --background: 240 50% 5%;
+  --foreground: 240 30% 95%;
+  --card: 240 50% 10%;
+  --primary: 260 100% 65%;
+  --accent: 200 100% 60%;
+}
+
+.theme-space .myspace-card {
+  background: linear-gradient(135deg,
+    hsl(260 100% 50% / 0.15) 0%,
+    hsl(200 100% 50% / 0.1) 50%,
+    hsl(280 100% 50% / 0.15) 100%
+  );
+}
+
+.theme-space .myspace-card::before {
+  background: linear-gradient(135deg,
+    hsl(260 100% 60%) 0%,
+    hsl(200 100% 50%) 50%,
+    hsl(280 100% 60%) 100%
+  );
+}
+
+.theme-space .gradient-text {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-violet-400 via-blue-400 to-purple-500;
+}
+
+/* Custom background image support */
+.profile-custom-bg {
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+}
+
+/* Sparkle animation for kawaii theme */
+.sparkle {
+  animation: sparkle 1.5s ease-in-out infinite;
+}
+
+@keyframes sparkle {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.8); }
+}
+
+/* Stars background animation for space theme */
+.stars-bg {
+  background-image: 
+    radial-gradient(2px 2px at 20px 30px, white, transparent),
+    radial-gradient(2px 2px at 40px 70px, rgba(255,255,255,0.8), transparent),
+    radial-gradient(1px 1px at 90px 40px, white, transparent),
+    radial-gradient(2px 2px at 160px 120px, rgba(255,255,255,0.9), transparent),
+    radial-gradient(1px 1px at 230px 80px, white, transparent);
+  background-repeat: repeat;
+  background-size: 250px 150px;
+  animation: stars-move 100s linear infinite;
+}
+
+@keyframes stars-move {
+  from { background-position: 0 0; }
+  to { background-position: 1000px 500px; }
+}

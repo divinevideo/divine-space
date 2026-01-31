@@ -55,7 +55,14 @@ export function useDivineVideosInfinite(options?: {
       if (lastPage.length < 20) return undefined;
       const lastVideo = lastPage[lastPage.length - 1];
       if (!lastVideo) return undefined;
-      return Math.floor(new Date(lastVideo.created_at).getTime() / 1000);
+      // Handle created_at as either Unix timestamp or ISO date string
+      const value = lastVideo.created_at;
+      const numValue = typeof value === 'number' ? value : Number(value);
+      if (!isNaN(numValue) && numValue > 0) {
+        // Already a Unix timestamp (or numeric string)
+        return Math.floor(numValue < 1e12 ? numValue : numValue / 1000);
+      }
+      return Math.floor(new Date(value).getTime() / 1000);
     },
   });
 }

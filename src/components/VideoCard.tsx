@@ -25,7 +25,20 @@ function formatCount(count: number): string {
 
 export function VideoCard({ video, className, showAuthor = true }: VideoCardProps) {
   const npub = nip19.npubEncode(video.pubkey);
-  const createdAt = new Date(video.created_at);
+  
+  // Handle created_at as either Unix timestamp (number/string) or ISO date string
+  const createdAt = (() => {
+    const value = video.created_at;
+    // If it's a number or numeric string, treat as Unix timestamp
+    const numValue = typeof value === 'number' ? value : Number(value);
+    if (!isNaN(numValue) && numValue > 0) {
+      // Unix timestamps are in seconds, JS Date expects milliseconds
+      return new Date(numValue < 1e12 ? numValue * 1000 : numValue);
+    }
+    // Otherwise try to parse as ISO date string
+    return new Date(value);
+  })();
+  
   const timeAgo = formatDistanceToNow(createdAt, { addSuffix: true });
 
   return (

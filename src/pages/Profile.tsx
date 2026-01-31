@@ -4,7 +4,11 @@ import { Layout } from '@/components/Layout';
 import { useDivineUser, useDivineUserVideosInfinite } from '@/hooks/useDivineUser';
 import { useIsFollowing, useToggleFollow } from '@/hooks/useDivineSocial';
 import { useKeycast } from '@/contexts/KeycastContext';
+import { useMySpaceProfile } from '@/hooks/useMySpaceProfile';
 import { VideoCard, VideoCardSkeleton } from '@/components/VideoCard';
+import { Top8Friends } from '@/components/Top8Friends';
+import { ProfileMusicPlayer } from '@/components/ProfileMusicPlayer';
+import { MoodWidget, StatusWidget, QuoteWidget, ProfileBlings } from '@/components/ProfileWidgets';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -24,11 +28,14 @@ import {
   Loader2,
   Edit,
   Zap,
-  Globe
+  Globe,
+  Music,
+  Palette
 } from 'lucide-react';
 import { useInView } from 'react-intersection-observer';
 import { useEffect } from 'react';
 import { useToast } from '@/hooks/useToast';
+import { cn } from '@/lib/utils';
 import NotFound from './NotFound';
 
 interface ProfileProps {
@@ -50,6 +57,7 @@ export default function Profile({ pubkey }: ProfileProps) {
   const { data: divineUser, isLoading: userLoading, error: userError } = useDivineUser(pubkey);
   const { data: isFollowing, isLoading: followingLoading } = useIsFollowing(pubkey);
   const { mutate: toggleFollow, isPending: followPending } = useToggleFollow();
+  const { data: myspaceProfile } = useMySpaceProfile(pubkey);
 
   const { 
     data: videosData, 
@@ -111,21 +119,37 @@ export default function Profile({ pubkey }: ProfileProps) {
     });
   };
 
+  // Get theme class based on MySpace profile settings
+  const themeClass = myspaceProfile?.theme && myspaceProfile.theme !== 'default' 
+    ? `theme-${myspaceProfile.theme}` 
+    : '';
+
   return (
     <Layout>
-      {/* Banner */}
-      <div className="relative h-48 md:h-64 overflow-hidden">
-        {profile.banner ? (
-          <img 
-            src={profile.banner} 
-            alt="Profile banner" 
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <div className="w-full h-full animated-gradient" />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent" />
-      </div>
+      <div className={cn(themeClass)}>
+        {/* Banner */}
+        <div className="relative h-48 md:h-64 overflow-hidden">
+          {/* Custom background from MySpace profile */}
+          {myspaceProfile?.background ? (
+            <img 
+              src={myspaceProfile.background} 
+              alt="Profile background" 
+              className="w-full h-full object-cover"
+            />
+          ) : profile.banner ? (
+            <img 
+              src={profile.banner} 
+              alt="Profile banner" 
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className={cn(
+              "w-full h-full animated-gradient",
+              myspaceProfile?.theme === 'space' && "stars-bg"
+            )} />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent" />
+        </div>
 
       <div className="container mx-auto px-4">
         {/* Profile Header */}
@@ -202,6 +226,12 @@ export default function Profile({ pubkey }: ProfileProps) {
                 </div>
               </div>
 
+              {/* Mood & Status - MySpace style! */}
+              <div className="mt-4 space-y-2">
+                <MoodWidget mood={myspaceProfile?.mood} />
+                <StatusWidget status={myspaceProfile?.status} />
+              </div>
+
               {/* Bio */}
               {profile.about && (
                 <p className="mt-4 text-muted-foreground max-w-2xl whitespace-pre-wrap">
@@ -226,131 +256,168 @@ export default function Profile({ pubkey }: ProfileProps) {
           </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <Card className="myspace-card text-center">
-            <CardContent className="pt-6">
-              <div className="text-3xl font-bold text-primary">{formatNumber(stats.video_count)}</div>
-              <div className="text-sm text-muted-foreground flex items-center justify-center gap-1 mt-1">
-                <Video className="h-4 w-4" />
-                Videos
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="myspace-card text-center">
-            <CardContent className="pt-6">
-              <div className="text-3xl font-bold text-pink-500">{formatNumber(social.follower_count)}</div>
-              <div className="text-sm text-muted-foreground flex items-center justify-center gap-1 mt-1">
-                <Users className="h-4 w-4" />
-                Followers
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="myspace-card text-center">
-            <CardContent className="pt-6">
-              <div className="text-3xl font-bold text-cyan-500">{formatNumber(social.following_count)}</div>
-              <div className="text-sm text-muted-foreground flex items-center justify-center gap-1 mt-1">
-                <Users className="h-4 w-4" />
-                Following
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="myspace-card text-center">
-            <CardContent className="pt-6">
-              <div className="text-3xl font-bold text-yellow-500">{formatNumber(stats.total_reactions)}</div>
-              <div className="text-sm text-muted-foreground flex items-center justify-center gap-1 mt-1">
-                <Heart className="h-4 w-4" />
-                Total Likes
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        {/* Profile Music Player - The iconic MySpace feature! */}
+        {myspaceProfile?.music && (
+          <ProfileMusicPlayer 
+            music={myspaceProfile.music} 
+            autoplay={myspaceProfile.autoplay}
+            className="mb-8"
+          />
+        )}
 
-        {/* Engagement Stats */}
-        <Card className="mb-8 bg-gradient-to-r from-primary/5 to-accent/5 border-primary/20">
-          <CardContent className="py-4">
-            <div className="flex flex-wrap items-center justify-center gap-8 text-center">
-              <div>
-                <div className="text-lg font-semibold">{(engagement.avg_reactions_per_video ?? 0).toFixed(1)}</div>
-                <div className="text-xs text-muted-foreground">Avg. Likes/Video</div>
-              </div>
-              <div>
-                <div className="text-lg font-semibold">{(engagement.avg_comments_per_video ?? 0).toFixed(1)}</div>
-                <div className="text-xs text-muted-foreground">Avg. Comments/Video</div>
-              </div>
-              <div>
-                <div className="text-lg font-semibold">{((engagement.engagement_rate ?? 0) * 100).toFixed(1)}%</div>
-                <div className="text-xs text-muted-foreground">Engagement Rate</div>
-              </div>
-              <div>
-                <div className="text-lg font-semibold">{formatNumber(stats.total_comments)}</div>
-                <div className="text-xs text-muted-foreground">Total Comments</div>
-              </div>
-              <div>
-                <div className="text-lg font-semibold">{formatNumber(stats.total_reposts)}</div>
-                <div className="text-xs text-muted-foreground">Total Reposts</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Profile Quote */}
+        <QuoteWidget quote={myspaceProfile?.quote} className="mb-8" />
 
-        {/* Videos */}
-        <Tabs defaultValue="videos">
-          <TabsList className="bg-muted/50 mb-6">
-            <TabsTrigger value="videos" className="gap-2">
-              <Video className="h-4 w-4" />
-              Videos ({stats.video_count})
-            </TabsTrigger>
-          </TabsList>
+        {/* MySpace-style two-column layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+          {/* Left Column - Top 8 Friends & Stats */}
+          <div className="lg:col-span-1 space-y-6">
+            {/* Top 8 Friends - THE classic MySpace feature! */}
+            <Top8Friends 
+              pubkey={pubkey} 
+              isOwnProfile={isOwnProfile}
+            />
 
-          <TabsContent value="videos">
-            {videosLoading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {Array.from({ length: 8 }).map((_, i) => (
-                  <VideoCardSkeleton key={i} />
-                ))}
-              </div>
-            ) : videos.length > 0 ? (
-              <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {videos.map((video) => (
-                    <VideoCard key={video.id} video={video} showAuthor={false} />
-                  ))}
-                </div>
-
-                {/* Load more */}
-                <div ref={ref} className="flex justify-center py-8">
-                  {isFetchingNextPage ? (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                      Loading more...
-                    </div>
-                  ) : hasNextPage ? (
-                    <Button variant="outline" onClick={() => fetchNextPage()}>
-                      Load More
-                    </Button>
-                  ) : videos.length > 0 ? (
-                    <p className="text-muted-foreground text-sm">
-                      That's all the videos!
-                    </p>
-                  ) : null}
-                </div>
-              </>
-            ) : (
-              <Card className="border-dashed">
-                <CardContent className="py-16 text-center">
-                  <Video className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                  <p className="text-muted-foreground">
-                    No videos yet
-                  </p>
+            {/* Stats Cards */}
+            <div className="grid grid-cols-2 gap-3">
+              <Card className="myspace-card text-center">
+                <CardContent className="py-4">
+                  <div className="text-2xl font-bold text-primary">{formatNumber(stats.video_count)}</div>
+                  <div className="text-xs text-muted-foreground flex items-center justify-center gap-1 mt-1">
+                    <Video className="h-3 w-3" />
+                    Videos
+                  </div>
                 </CardContent>
               </Card>
+              
+              <Card className="myspace-card text-center">
+                <CardContent className="py-4">
+                  <div className="text-2xl font-bold text-pink-500">{formatNumber(social.follower_count)}</div>
+                  <div className="text-xs text-muted-foreground flex items-center justify-center gap-1 mt-1">
+                    <Users className="h-3 w-3" />
+                    Followers
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card className="myspace-card text-center">
+                <CardContent className="py-4">
+                  <div className="text-2xl font-bold text-cyan-500">{formatNumber(social.following_count)}</div>
+                  <div className="text-xs text-muted-foreground flex items-center justify-center gap-1 mt-1">
+                    <Users className="h-3 w-3" />
+                    Following
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card className="myspace-card text-center">
+                <CardContent className="py-4">
+                  <div className="text-2xl font-bold text-yellow-500">{formatNumber(stats.total_reactions)}</div>
+                  <div className="text-xs text-muted-foreground flex items-center justify-center gap-1 mt-1">
+                    <Heart className="h-3 w-3" />
+                    Likes
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Engagement Stats */}
+            <Card className="myspace-card">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  Engagement
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Avg. Likes/Video</span>
+                  <span className="font-medium">{(engagement.avg_reactions_per_video ?? 0).toFixed(1)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Avg. Comments</span>
+                  <span className="font-medium">{(engagement.avg_comments_per_video ?? 0).toFixed(1)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Engagement Rate</span>
+                  <span className="font-medium">{((engagement.engagement_rate ?? 0) * 100).toFixed(1)}%</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Customize Profile button for own profile */}
+            {isOwnProfile && (
+              <Link to="/settings/myspace">
+                <Button variant="outline" className="w-full gap-2">
+                  <Palette className="h-4 w-4" />
+                  Customize Profile
+                </Button>
+              </Link>
             )}
-          </TabsContent>
-        </Tabs>
+
+            {/* Profile Bling decoration */}
+            <ProfileBlings />
+          </div>
+
+          {/* Right Column - Videos */}
+          <div className="lg:col-span-2">
+            {/* Videos */}
+            <Tabs defaultValue="videos">
+              <TabsList className="bg-muted/50 mb-6">
+                <TabsTrigger value="videos" className="gap-2">
+                  <Video className="h-4 w-4" />
+                  Videos ({stats.video_count})
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="videos">
+                {videosLoading ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <VideoCardSkeleton key={i} />
+                    ))}
+                  </div>
+                ) : videos.length > 0 ? (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                      {videos.map((video) => (
+                        <VideoCard key={video.id} video={video} showAuthor={false} />
+                      ))}
+                    </div>
+
+                    {/* Load more */}
+                    <div ref={ref} className="flex justify-center py-8">
+                      {isFetchingNextPage ? (
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                          Loading more...
+                        </div>
+                      ) : hasNextPage ? (
+                        <Button variant="outline" onClick={() => fetchNextPage()}>
+                          Load More
+                        </Button>
+                      ) : videos.length > 0 ? (
+                        <p className="text-muted-foreground text-sm">
+                          That's all the videos!
+                        </p>
+                      ) : null}
+                    </div>
+                  </>
+                ) : (
+                  <Card className="border-dashed">
+                    <CardContent className="py-16 text-center">
+                      <Video className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                      <p className="text-muted-foreground">
+                        No videos yet
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
+              </TabsContent>
+            </Tabs>
+          </div>
+        </div>
+      </div>
       </div>
     </Layout>
   );
