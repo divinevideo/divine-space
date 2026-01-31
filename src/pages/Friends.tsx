@@ -2,7 +2,7 @@ import { useSeoMeta } from '@unhead/react';
 import { Link } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { useDivineUserFollowing, useDivineUserFollowers } from '@/hooks/useDivineUser';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useKeycast } from '@/contexts/KeycastContext';
 import { useAuthor } from '@/hooks/useAuthor';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -10,17 +10,17 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Users, UserPlus, Heart, Sparkles } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
-import { LoginArea } from '@/components/auth/LoginArea';
+import { KeycastLoginArea } from '@/components/auth/KeycastLoginArea';
 
 export default function Friends() {
-  const { user, metadata } = useCurrentUser();
+  const { pubkey, isAuthenticated } = useKeycast();
 
   useSeoMeta({
     title: 'Friends - DiVine Space',
     description: 'Manage your friends and followers on DiVine Space.',
   });
 
-  if (!user) {
+  if (!isAuthenticated || !pubkey) {
     return (
       <Layout>
         <div className="container mx-auto px-4 py-16">
@@ -31,7 +31,7 @@ export default function Friends() {
               <p className="text-muted-foreground mb-6">
                 Log in to see your friends, followers, and who you're following.
               </p>
-              <LoginArea className="justify-center" />
+              <KeycastLoginArea className="justify-center" />
             </CardContent>
           </Card>
         </div>
@@ -39,7 +39,7 @@ export default function Friends() {
     );
   }
 
-  return <FriendsContent pubkey={user.pubkey} />;
+  return <FriendsContent pubkey={pubkey} />;
 }
 
 function FriendsContent({ pubkey }: { pubkey: string }) {

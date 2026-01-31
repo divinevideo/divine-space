@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
-import { useCurrentUser } from './useCurrentUser';
-import { useNostrPublish } from './useNostrPublish';
+import { useKeycast } from '@/contexts/KeycastContext';
+import { useKeycastPublish } from './useKeycastPublish';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 /**
@@ -9,23 +9,23 @@ import type { NostrEvent } from '@nostrify/nostrify';
  */
 export function useVideoReaction(videoId: string | undefined, videoAuthorPubkey: string | undefined) {
   const { nostr } = useNostr();
-  const { user } = useCurrentUser();
+  const { pubkey, isAuthenticated } = useKeycast();
 
   return useQuery({
-    queryKey: ['divine', 'reaction', videoId, user?.pubkey],
+    queryKey: ['divine', 'reaction', videoId, pubkey],
     queryFn: async () => {
-      if (!user || !videoId) return null;
+      if (!pubkey || !videoId) return null;
       
       const events = await nostr.query([{
         kinds: [7],
-        authors: [user.pubkey],
+        authors: [pubkey],
         '#e': [videoId],
         limit: 1,
       }]);
 
       return events[0] ?? null;
     },
-    enabled: !!user && !!videoId,
+    enabled: isAuthenticated && !!pubkey && !!videoId,
   });
 }
 
@@ -34,8 +34,8 @@ export function useVideoReaction(videoId: string | undefined, videoAuthorPubkey:
  */
 export function useToggleVideoReaction() {
   const queryClient = useQueryClient();
-  const { mutateAsync: publishEvent } = useNostrPublish();
-  const { user } = useCurrentUser();
+  const { mutateAsync: publishEvent } = useKeycastPublish();
+  const { pubkey, isAuthenticated } = useKeycast();
 
   return useMutation({
     mutationFn: async ({ 
@@ -49,7 +49,7 @@ export function useToggleVideoReaction() {
       videoKind: number;
       existingReaction: NostrEvent | null;
     }) => {
-      if (!user) throw new Error('Must be logged in');
+      if (!isAuthenticated || !pubkey) throw new Error('Must be logged in');
 
       if (existingReaction) {
         // Unlike - create deletion event
@@ -89,17 +89,17 @@ export function useToggleVideoReaction() {
  */
 export function useIsFollowing(targetPubkey: string | undefined) {
   const { nostr } = useNostr();
-  const { user } = useCurrentUser();
+  const { pubkey, isAuthenticated } = useKeycast();
 
   return useQuery({
-    queryKey: ['divine', 'following', user?.pubkey, targetPubkey],
+    queryKey: ['divine', 'following', pubkey, targetPubkey],
     queryFn: async () => {
-      if (!user || !targetPubkey) return false;
-      if (user.pubkey === targetPubkey) return false;
+      if (!pubkey || !targetPubkey) return false;
+      if (pubkey === targetPubkey) return false;
       
       const events = await nostr.query([{
         kinds: [3],
-        authors: [user.pubkey],
+        authors: [pubkey],
         limit: 1,
       }]);
 
@@ -107,10 +107,10 @@ export function useIsFollowing(targetPubkey: string | undefined) {
       
       const contactList = events[0];
       return contactList.tags.some(
-        ([tag, pubkey]) => tag === 'p' && pubkey === targetPubkey
+        ([tag, pk]) => tag === 'p' && pk === targetPubkey
       );
     },
-    enabled: !!user && !!targetPubkey && user?.pubkey !== targetPubkey,
+    enabled: isAuthenticated && !!pubkey && !!targetPubkey && pubkey !== targetPubkey,
   });
 }
 
@@ -120,8 +120,8 @@ export function useIsFollowing(targetPubkey: string | undefined) {
 export function useToggleFollow() {
   const queryClient = useQueryClient();
   const { nostr } = useNostr();
-  const { mutateAsync: publishEvent } = useNostrPublish();
-  const { user } = useCurrentUser();
+  const { mutateAsync: publishEvent } = useKeycastPublish();
+  const { pubkey, isAuthenticated } = useKeycast();
 
   return useMutation({
     mutationFn: async ({ 
@@ -131,12 +131,12 @@ export function useToggleFollow() {
       targetPubkey: string;
       isCurrentlyFollowing: boolean;
     }) => {
-      if (!user) throw new Error('Must be logged in');
+      if (!isAuthenticated || !pubkey) throw new Error('Must be logged in');
 
       // Get current contact list
       const events = await nostr.query([{
         kinds: [3],
-        authors: [user.pubkey],
+        authors: [pubkey],
         limit: 1,
       }]);
 
@@ -169,13 +169,13 @@ export function useToggleFollow() {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ 
-        queryKey: ['divine', 'following', user?.pubkey, variables.targetPubkey] 
+        queryKey: ['divine', 'following', pubkey, variables.targetPubkey] 
       });
       queryClient.invalidateQueries({ 
         queryKey: ['divine', 'user', 'social', variables.targetPubkey] 
       });
       queryClient.invalidateQueries({ 
-        queryKey: ['divine', 'user', 'social', user?.pubkey] 
+        queryKey: ['divine', 'user', 'social', pubkey] 
       });
     },
   });
@@ -186,8 +186,8 @@ export function useToggleFollow() {
  */
 export function usePostComment() {
   const queryClient = useQueryClient();
-  const { mutateAsync: publishEvent } = useNostrPublish();
-  const { user } = useCurrentUser();
+  const { mutateAsync: publishEvent } = useKeycastPublish();
+  const { pubkey, isAuthenticated } = useKeycast();
 
   return useMutation({
     mutationFn: async ({ 
@@ -207,7 +207,7 @@ export function usePostComment() {
       parentAuthorPubkey?: string;
       parentKind?: number;
     }) => {
-      if (!user) throw new Error('Must be logged in');
+      if (!isAuthenticated || !pubkey) throw new Error('Must be logged in');
 
       const tags: string[][] = [
         ['E', videoId],
@@ -263,8 +263,8 @@ export function useVideoComments(videoId: string | undefined) {
  */
 export function useRepostVideo() {
   const queryClient = useQueryClient();
-  const { mutateAsync: publishEvent } = useNostrPublish();
-  const { user } = useCurrentUser();
+  const { mutateAsync: publishEvent } = useKeycastPublish();
+  const { pubkey, isAuthenticated } = useKeycast();
 
   return useMutation({
     mutationFn: async ({ 
@@ -276,7 +276,7 @@ export function useRepostVideo() {
       videoAuthorPubkey: string;
       videoKind: number;
     }) => {
-      if (!user) throw new Error('Must be logged in');
+      if (!isAuthenticated || !pubkey) throw new Error('Must be logged in');
 
       return publishEvent({
         kind: 16,

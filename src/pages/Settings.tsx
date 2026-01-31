@@ -1,21 +1,21 @@
 import { useSeoMeta } from '@unhead/react';
 import { Layout } from '@/components/Layout';
 import { EditProfileForm } from '@/components/EditProfileForm';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useKeycast } from '@/contexts/KeycastContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { User, Settings as SettingsIcon, Bell, Shield } from 'lucide-react';
-import { LoginArea } from '@/components/auth/LoginArea';
+import { KeycastLoginArea } from '@/components/auth/KeycastLoginArea';
 
 export default function Settings() {
-  const { user } = useCurrentUser();
+  const { isAuthenticated } = useKeycast();
 
   useSeoMeta({
     title: 'Settings - DiVine Space',
     description: 'Manage your DiVine Space profile and settings.',
   });
 
-  if (!user) {
+  if (!isAuthenticated) {
     return (
       <Layout>
         <div className="container mx-auto px-4 py-16">
@@ -26,7 +26,7 @@ export default function Settings() {
               <p className="text-muted-foreground mb-6">
                 Log in to access your settings and customize your profile.
               </p>
-              <LoginArea className="justify-center" />
+              <KeycastLoginArea className="justify-center" />
             </CardContent>
           </Card>
         </div>

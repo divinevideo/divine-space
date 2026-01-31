@@ -4,7 +4,7 @@ import { Layout } from '@/components/Layout';
 import { useDivineVideo, useDivineVideoStats } from '@/hooks/useDivineVideos';
 import { useVideoComments, useVideoReaction, useToggleVideoReaction, usePostComment, useRepostVideo } from '@/hooks/useDivineSocial';
 import { useDivineUserVideos } from '@/hooks/useDivineUser';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useKeycast } from '@/contexts/KeycastContext';
 import { useAuthor } from '@/hooks/useAuthor';
 import { VideoCard, VideoCardSkeleton } from '@/components/VideoCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -39,7 +39,7 @@ function formatNumber(num: number): string {
 
 export default function Video() {
   const { id } = useParams<{ id: string }>();
-  const { user } = useCurrentUser();
+  const { isAuthenticated } = useKeycast();
   const { toast } = useToast();
   const [commentText, setCommentText] = useState('');
 
@@ -85,7 +85,7 @@ export default function Video() {
   const isLiked = !!existingReaction;
 
   const handleLike = () => {
-    if (!user) {
+    if (!isAuthenticated) {
       toast({ title: 'Please log in to like videos', variant: 'destructive' });
       return;
     }
@@ -98,7 +98,7 @@ export default function Video() {
   };
 
   const handleComment = () => {
-    if (!user) {
+    if (!isAuthenticated) {
       toast({ title: 'Please log in to comment', variant: 'destructive' });
       return;
     }
@@ -121,7 +121,7 @@ export default function Video() {
   };
 
   const handleRepost = () => {
-    if (!user) {
+    if (!isAuthenticated) {
       toast({ title: 'Please log in to repost', variant: 'destructive' });
       return;
     }
@@ -291,7 +291,7 @@ export default function Video() {
               </CardHeader>
               <CardContent className="space-y-4">
                 {/* Comment Form */}
-                {user ? (
+                {isAuthenticated ? (
                   <div className="flex gap-3">
                     <Textarea
                       value={commentText}

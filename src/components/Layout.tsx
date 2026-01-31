@@ -3,8 +3,8 @@ import { Link, useLocation } from 'react-router-dom';
 import { Home, Search, User, Users, Trophy, Video, Menu, X, Sparkles } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { LoginArea } from '@/components/auth/LoginArea';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { KeycastLoginArea } from '@/components/auth/KeycastLoginArea';
+import { useKeycast } from '@/contexts/KeycastContext';
 import { cn } from '@/lib/utils';
 import { nip19 } from 'nostr-tools';
 
@@ -15,7 +15,7 @@ interface LayoutProps {
 export function Layout({ children }: LayoutProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
-  const { user, metadata } = useCurrentUser();
+  const { isAuthenticated, pubkey } = useKeycast();
 
   const navigation = [
     { name: 'Home', href: '/', icon: Home },
@@ -24,8 +24,8 @@ export function Layout({ children }: LayoutProps) {
     { name: 'Leaderboards', href: '/leaderboard', icon: Trophy },
   ];
 
-  const userNavigation = user ? [
-    { name: 'My Profile', href: `/${nip19.npubEncode(user.pubkey)}`, icon: User },
+  const userNavigation = isAuthenticated && pubkey ? [
+    { name: 'My Profile', href: `/${nip19.npubEncode(pubkey)}`, icon: User },
     { name: 'Friends', href: '/friends', icon: Users },
   ] : [];
 
@@ -88,7 +88,7 @@ export function Layout({ children }: LayoutProps) {
 
             {/* Right side */}
             <div className="flex items-center gap-3">
-              <LoginArea className="hidden sm:flex" />
+              <KeycastLoginArea className="hidden sm:flex" />
               
               {/* Mobile menu button */}
               <Button
@@ -133,7 +133,7 @@ export function Layout({ children }: LayoutProps) {
                 );
               })}
               <div className="pt-4 border-t border-border/50">
-                <LoginArea className="w-full" />
+                <KeycastLoginArea className="w-full" />
               </div>
             </nav>
           </div>

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { useDivineUser, useDivineUserVideosInfinite } from '@/hooks/useDivineUser';
 import { useIsFollowing, useToggleFollow } from '@/hooks/useDivineSocial';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useKeycast } from '@/contexts/KeycastContext';
 import { VideoCard, VideoCardSkeleton } from '@/components/VideoCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -35,16 +35,17 @@ interface ProfileProps {
   pubkey: string;
 }
 
-function formatNumber(num: number): string {
+function formatNumber(num: number | undefined): string {
+  if (num === undefined || num === null) return '0';
   if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
   if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
   return num.toString();
 }
 
 export default function Profile({ pubkey }: ProfileProps) {
-  const { user: currentUser } = useCurrentUser();
+  const { pubkey: currentUserPubkey, isAuthenticated } = useKeycast();
   const { toast } = useToast();
-  const isOwnProfile = currentUser?.pubkey === pubkey;
+  const isOwnProfile = currentUserPubkey === pubkey;
 
   const { data: divineUser, isLoading: userLoading, error: userError } = useDivineUser(pubkey);
   const { data: isFollowing, isLoading: followingLoading } = useIsFollowing(pubkey);
@@ -96,7 +97,7 @@ export default function Profile({ pubkey }: ProfileProps) {
   const videos = videosData?.pages.flat() ?? [];
 
   const handleFollow = () => {
-    if (!currentUser) {
+    if (!isAuthenticated) {
       toast({ title: 'Please log in to follow users', variant: 'destructive' });
       return;
     }
