@@ -6,9 +6,40 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { useAuthor } from '@/hooks/useAuthor';
+import { useNostr } from '@nostrify/react';
+import { useQuery } from '@tanstack/react-query';
 import { useMySpaceProfile, type TopFriend, type PresetStyle } from '@/hooks/useMySpaceProfile';
 import { Users, Sparkles, Crown, Heart, Star, Trophy, Medal, Video, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+// Hook to get who a user follows from their kind 3 contact list
+function useFollowingList(pubkey: string | undefined) {
+  const { nostr } = useNostr();
+
+  return useQuery({
+    queryKey: ['nostr', 'following-list', pubkey],
+    queryFn: async () => {
+      if (!pubkey) return [];
+      
+      const events = await nostr.query([{
+        kinds: [3],
+        authors: [pubkey],
+        limit: 1,
+      }]);
+
+      if (events.length === 0) return [];
+      
+      // Extract pubkeys from p tags
+      const followingPubkeys = events[0].tags
+        .filter(([tag]) => tag === 'p')
+        .map(([_, pk]) => pk)
+        .slice(0, 8); // Only take first 8
+      
+      return followingPubkeys;
+    },
+    enabled: !!pubkey,
+  });
+}
 
 interface Top8FriendsProps {
   pubkey: string;
@@ -46,14 +77,26 @@ function getRankColors(rank: number) {
 }
 
 export function Top8Friends({ pubkey, isOwnProfile, className, presetStyle }: Top8FriendsProps) {
-  const { data: profile, isLoading } = useMySpaceProfile(pubkey);
+  const { data: profile, isLoading: profileLoading } = useMySpaceProfile(pubkey);
+  const { data: followingPubkeys = [], isLoading: followingLoading } = useFollowingList(pubkey);
+
+  const isLoading = profileLoading || followingLoading;
 
   if (isLoading) {
     return <Top8FriendsSkeleton className={className} />;
   }
 
-  const topFriends = profile?.topFriends || [];
+  // Use custom top friends if set, otherwise fall back to following list
+  const customTopFriends = profile?.topFriends || [];
+  const hasCustomTop8 = customTopFriends.length > 0;
+  
+  // Convert following pubkeys to TopFriend format for fallback
+  const followingAsFriends: TopFriend[] = followingPubkeys.map(pk => ({ pubkey: pk }));
+  
+  // Use custom top8 if available, otherwise use following list
+  const topFriends = hasCustomTop8 ? customTopFriends : followingAsFriends;
   const hasTop8 = topFriends.length > 0;
+  const isUsingFallback = !hasCustomTop8 && followingAsFriends.length > 0;
 
   // Style variations based on preset
   const headerStyle = presetStyle === 'scene-kid' 
@@ -66,6 +109,8 @@ export function Top8Friends({ pubkey, isOwnProfile, className, presetStyle }: To
     ? '★ Best Friends ★'
     : presetStyle === 'cyber-punk'
     ? '// TOP_FRIENDS'
+    : isUsingFallback
+    ? 'Following'
     : `Top ${Math.min(topFriends.length || 8, 8)} Friends`;
 
   return (
@@ -112,15 +157,21 @@ export function Top8Friends({ pubkey, isOwnProfile, className, presetStyle }: To
                   friend={friend} 
                   rank={index + 1}
                   presetStyle={presetStyle}
+                  isUsingFallback={isUsingFallback}
                 />
               ))}
               {/* Fill empty slots with placeholders if less than 8 */}
-              {topFriends.length < 8 && isOwnProfile && (
+              {topFriends.length < 8 && isOwnProfile && !isUsingFallback && (
                 Array.from({ length: Math.min(8 - topFriends.length, 4) }).map((_, i) => (
                   <EmptySlot key={`empty-${i}`} presetStyle={presetStyle} />
                 ))
               )}
             </div>
+            
+            {/* Snarky message when using fallback and less than 8 friends */}
+            {isUsingFallback && topFriends.length < 8 && (
+              <SnarkyMessage count={topFriends.length} presetStyle={presetStyle} />
+            )}
             
             {/* Decorative footer */}
             <div className="mt-4 flex items-center justify-center gap-1 text-[10px] text-muted-foreground">
@@ -148,9 +199,10 @@ interface FriendSlotProps {
   friend: TopFriend;
   rank: number;
   presetStyle?: PresetStyle;
+  isUsingFallback?: boolean;
 }
 
-function FriendSlot({ friend, rank, presetStyle }: FriendSlotProps) {
+function FriendSlot({ friend, rank, presetStyle, isUsingFallback }: FriendSlotProps) {
   const { data: author, isLoading } = useAuthor(friend.pubkey);
   const npub = nip19.npubEncode(friend.pubkey);
   const metadata = author?.metadata;
@@ -167,10 +219,13 @@ function FriendSlot({ friend, rank, presetStyle }: FriendSlotProps) {
   const rankIcon = getRankIcon(rank);
   const rankColors = getRankColors(rank);
 
+  // When using fallback (showing following list), don't show rank styling
+  const showRanks = !isUsingFallback;
+
   return (
     <Link to={`/${npub}`} className="group text-center relative block">
       {/* Rank badge for top 3 */}
-      {rank <= 3 && (
+      {showRanks && rank <= 3 && (
         <div className={cn(
           "absolute -top-1 z-10",
           rank === 1 ? "-right-1" : "right-0"
@@ -181,7 +236,7 @@ function FriendSlot({ friend, rank, presetStyle }: FriendSlotProps) {
       
       <div className="relative">
         {/* Animated ring for #1 */}
-        {rank === 1 && (
+        {showRanks && rank === 1 && (
           <div className="absolute inset-0 -m-1 rounded-full bg-gradient-to-r from-yellow-400 via-pink-500 to-yellow-400 animate-spin-slow opacity-50 blur-sm" 
                style={{ animationDuration: '3s' }} />
         )}
@@ -189,47 +244,96 @@ function FriendSlot({ friend, rank, presetStyle }: FriendSlotProps) {
         <Avatar className={cn(
           "h-14 w-14 mx-auto border-2 transition-all duration-300 relative",
           "group-hover:scale-110",
-          rankColors,
-          rank > 3 && "group-hover:border-primary"
+          showRanks ? rankColors : "border-border group-hover:border-primary"
         )}>
           <AvatarImage src={metadata?.picture} className="object-cover" />
           <AvatarFallback className={cn(
             "text-lg font-bold",
-            rank === 1 ? "bg-gradient-to-br from-yellow-100 to-yellow-200 text-yellow-700" :
-            rank === 2 ? "bg-gradient-to-br from-gray-100 to-gray-200 text-gray-700" :
-            rank === 3 ? "bg-gradient-to-br from-amber-100 to-amber-200 text-amber-700" :
+            showRanks && rank === 1 ? "bg-gradient-to-br from-yellow-100 to-yellow-200 text-yellow-700" :
+            showRanks && rank === 2 ? "bg-gradient-to-br from-gray-100 to-gray-200 text-gray-700" :
+            showRanks && rank === 3 ? "bg-gradient-to-br from-amber-100 to-amber-200 text-amber-700" :
             "bg-primary/10 text-primary"
           )}>
             {(metadata?.name || 'A')[0].toUpperCase()}
           </AvatarFallback>
         </Avatar>
         
-        {/* Position number badge */}
-        <div className={cn(
-          "absolute -bottom-1 left-1/2 -translate-x-1/2 min-w-[20px] h-5 px-1 rounded-full text-[10px] font-bold flex items-center justify-center",
-          rank === 1 && "bg-gradient-to-r from-yellow-400 to-orange-500 text-white shadow-lg",
-          rank === 2 && "bg-gradient-to-r from-gray-300 to-gray-400 text-gray-800",
-          rank === 3 && "bg-gradient-to-r from-amber-500 to-amber-600 text-white",
-          rank > 3 && "bg-muted text-muted-foreground"
-        )}>
-          #{rank}
-        </div>
+        {/* Position number badge - only show for custom top8, not fallback */}
+        {showRanks && (
+          <div className={cn(
+            "absolute -bottom-1 left-1/2 -translate-x-1/2 min-w-[20px] h-5 px-1 rounded-full text-[10px] font-bold flex items-center justify-center",
+            rank === 1 && "bg-gradient-to-r from-yellow-400 to-orange-500 text-white shadow-lg",
+            rank === 2 && "bg-gradient-to-r from-gray-300 to-gray-400 text-gray-800",
+            rank === 3 && "bg-gradient-to-r from-amber-500 to-amber-600 text-white",
+            rank > 3 && "bg-muted text-muted-foreground"
+          )}>
+            #{rank}
+          </div>
+        )}
       </div>
       
       {/* Name with optional nickname */}
-      <div className="mt-2.5">
+      <div className={cn("mt-2.5", !showRanks && "mt-1.5")}>
         <p className={cn(
           "text-xs truncate group-hover:text-primary transition-colors max-w-[70px] mx-auto font-medium",
-          rank === 1 && "text-yellow-500 group-hover:text-yellow-400"
+          showRanks && rank === 1 && "text-yellow-500 group-hover:text-yellow-400"
         )}>
           {friend.nickname || metadata?.display_name || metadata?.name || 'Anon'}
         </p>
-        {/* Show tiny role/title for top 3 */}
-        {rank === 1 && (
+        {/* Show tiny role/title for top 3 - only for custom top8 */}
+        {showRanks && rank === 1 && (
           <p className="text-[9px] text-yellow-500/80 mt-0.5">bestie</p>
         )}
       </div>
     </Link>
+  );
+}
+
+function SnarkyMessage({ count, presetStyle }: { count: number; presetStyle?: PresetStyle }) {
+  // Snarky messages based on friend count
+  const getSnarkyMessage = () => {
+    if (count === 0) return "No friends? Yikes. 💀";
+    if (count === 1) return "Just one friend? That's... intimate.";
+    if (count === 2) return "Two friends? Quality over quantity, I guess...";
+    if (count === 3) return "Three friends? At least you've got a trio.";
+    if (count === 4) return "Only 4 friends? Halfway to cool.";
+    if (count === 5) return "5 friends? Almost there, keep socializing!";
+    if (count === 6) return "6 friends? 2 more and you'd have a full squad.";
+    if (count === 7) return "So close! Just one more friend to be elite.";
+    return "Impressive friend collection!";
+  };
+
+  const getPresetSnarkyMessage = () => {
+    if (presetStyle === 'scene-kid') {
+      if (count <= 3) return "xX not very scene of u Xx";
+      return "xX need moar friends Xx";
+    }
+    if (presetStyle === 'kawaii-star') {
+      if (count <= 3) return "So lonely~ (´;ω;`)";
+      return "Find more friends~ ♡";
+    }
+    if (presetStyle === 'cyber-punk') {
+      if (count <= 3) return "// ERROR: friends.length < required";
+      return "// WARN: friend_count insufficient";
+    }
+    if (presetStyle === 'vine-legend') {
+      if (count <= 3) return "This is sad. I'm calling the cops.";
+      return "Two bros chillin'... alone apparently";
+    }
+    if (presetStyle === 'y2k-princess') {
+      if (count <= 3) return "~ where r ur angels? ~";
+      return "~ need more besties ~";
+    }
+    return getSnarkyMessage();
+  };
+
+  return (
+    <div className={cn(
+      "mt-3 text-center text-[11px] italic",
+      presetStyle === 'cyber-punk' ? "font-mono text-cyan-500/70" : "text-muted-foreground/70"
+    )}>
+      {getPresetSnarkyMessage()}
+    </div>
   );
 }
 
