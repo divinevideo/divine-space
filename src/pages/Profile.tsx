@@ -4,11 +4,11 @@ import { Layout } from '@/components/Layout';
 import { useDivineUser, useDivineUserVideosInfinite } from '@/hooks/useDivineUser';
 import { useIsFollowing, useToggleFollow } from '@/hooks/useDivineSocial';
 import { useKeycast } from '@/contexts/KeycastContext';
-import { useMySpaceProfile } from '@/hooks/useMySpaceProfile';
+import { useMySpaceProfile, getPresetStyleInfo } from '@/hooks/useMySpaceProfile';
 import { VideoCard, VideoCardSkeleton } from '@/components/VideoCard';
 import { Top8Friends } from '@/components/Top8Friends';
 import { ProfileMusicPlayer } from '@/components/ProfileMusicPlayer';
-import { MoodWidget, StatusWidget, QuoteWidget, ProfileBlings } from '@/components/ProfileWidgets';
+import { MoodWidget, StatusWidget, QuoteWidget, ProfileBlings, PresetBadge, ClaimProfileBanner, MusicSuggestion, ThemedDivider, VisitorMessage } from '@/components/ProfileWidgets';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -30,7 +30,8 @@ import {
   Zap,
   Globe,
   Music,
-  Palette
+  Palette,
+  Wand2
 } from 'lucide-react';
 import { useInView } from 'react-intersection-observer';
 import { useEffect } from 'react';
@@ -150,9 +151,22 @@ export default function Profile({ pubkey }: ProfileProps) {
     ? `theme-${myspaceProfile.theme}` 
     : '';
 
+  // Get preset style info if profile is unclaimed
+  const presetInfo = myspaceProfile?.presetStyle 
+    ? getPresetStyleInfo(myspaceProfile.presetStyle) 
+    : null;
+
+  // Determine if this is an unclaimed preset profile
+  const isUnclaimedProfile = myspaceProfile?.isPreset && !myspaceProfile?.isClaimed;
+
   return (
     <Layout>
       <div className={cn(themeClass)}>
+        {/* Claim Profile Banner - shown for unclaimed profiles when viewing your own */}
+        {isOwnProfile && isUnclaimedProfile && (
+          <ClaimProfileBanner presetStyle={myspaceProfile?.presetStyle} />
+        )}
+
         {/* Banner */}
         <div className="relative h-48 md:h-64 overflow-hidden">
           {/* Custom background from MySpace profile */}
@@ -161,6 +175,17 @@ export default function Profile({ pubkey }: ProfileProps) {
               src={myspaceProfile.background} 
               alt="Profile background" 
               className="w-full h-full object-cover"
+            />
+          ) : myspaceProfile?.backgroundGradient ? (
+            // Use preset gradient background for unclaimed profiles
+            <div 
+              className={cn(
+                "w-full h-full",
+                myspaceProfile?.theme === 'space' && "stars-bg",
+                myspaceProfile?.effect === 'sparkle' && "sparkle-overlay",
+                myspaceProfile?.effect === 'glow' && "glow-overlay"
+              )}
+              style={{ background: myspaceProfile.backgroundGradient }}
             />
           ) : profile.banner ? (
             <img 
@@ -175,6 +200,13 @@ export default function Profile({ pubkey }: ProfileProps) {
             )} />
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent" />
+          
+          {/* Preset style badge for unclaimed profiles */}
+          {isUnclaimedProfile && presetInfo && (
+            <div className="absolute top-4 right-4">
+              <PresetBadge style={myspaceProfile.presetStyle!} />
+            </div>
+          )}
         </div>
 
       <div className="container mx-auto px-4">
@@ -291,6 +323,13 @@ export default function Profile({ pubkey }: ProfileProps) {
           />
         )}
 
+        {/* Music Suggestion for unclaimed profiles */}
+        {isUnclaimedProfile && myspaceProfile?.musicSuggestion && !myspaceProfile?.music && (
+          <div className="mb-8">
+            <MusicSuggestion suggestion={myspaceProfile.musicSuggestion} />
+          </div>
+        )}
+
         {/* Profile Quote */}
         <QuoteWidget quote={myspaceProfile?.quote} className="mb-8" />
 
@@ -381,8 +420,16 @@ export default function Profile({ pubkey }: ProfileProps) {
               </Link>
             )}
 
+            {/* Themed divider for preset profiles */}
+            {isUnclaimedProfile && myspaceProfile?.presetStyle && (
+              <ThemedDivider style={myspaceProfile.presetStyle} />
+            )}
+
             {/* Profile Bling decoration */}
             <ProfileBlings />
+
+            {/* Visitor message */}
+            <VisitorMessage className="mt-4" />
           </div>
 
           {/* Right Column - Videos */}

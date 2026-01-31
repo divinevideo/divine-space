@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { 
   Smile, 
   Quote, 
@@ -8,10 +10,16 @@ import {
   Sparkles,
   Clock,
   Calendar,
-  Heart
+  Heart,
+  Wand2,
+  Palette,
+  ArrowRight,
+  Star,
+  Zap
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
+import { type PresetStyle, getPresetStyleInfo } from '@/hooks/useMySpaceProfile';
 
 // Mood emojis for selection
 export const MOOD_OPTIONS = [
@@ -317,5 +325,189 @@ export function AboutMeSection({ about, whoIdLikeToMeet, className }: AboutMeSec
         )}
       </CardContent>
     </Card>
+  );
+}
+
+// ========================================
+// Preset Profile Components
+// ========================================
+
+interface PresetBadgeProps {
+  style: PresetStyle;
+  className?: string;
+}
+
+export function PresetBadge({ style, className }: PresetBadgeProps) {
+  const info = getPresetStyleInfo(style);
+  
+  return (
+    <Badge 
+      variant="secondary" 
+      className={cn(
+        "gap-1.5 px-3 py-1.5 text-xs font-medium backdrop-blur-sm",
+        "bg-background/80 border border-primary/30",
+        "animate-pulse-glow",
+        className
+      )}
+    >
+      <span className="text-base">{info.emoji}</span>
+      <span className="gradient-text">{info.name}</span>
+    </Badge>
+  );
+}
+
+interface ClaimProfileBannerProps {
+  presetStyle?: PresetStyle;
+  className?: string;
+}
+
+export function ClaimProfileBanner({ presetStyle, className }: ClaimProfileBannerProps) {
+  const info = presetStyle ? getPresetStyleInfo(presetStyle) : null;
+  
+  return (
+    <div className={cn(
+      "relative overflow-hidden",
+      "bg-gradient-to-r from-purple-600/20 via-pink-600/20 to-cyan-600/20",
+      "border-b border-primary/30",
+      className
+    )}>
+      {/* Animated background */}
+      <div className="absolute inset-0 animated-gradient opacity-30" />
+      
+      <div className="relative container mx-auto px-4 py-4">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3 text-center sm:text-left">
+            <div className="h-12 w-12 rounded-full bg-primary/20 flex items-center justify-center animate-float">
+              <Wand2 className="h-6 w-6 text-primary" />
+            </div>
+            <div>
+              <h3 className="font-bold text-lg flex items-center gap-2">
+                <span className="gradient-text">Make this profile yours!</span>
+                <Sparkles className="h-4 w-4 text-yellow-500" />
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                {info ? (
+                  <>Your preset style is <span className="font-medium text-primary">{info.emoji} {info.name}</span> - customize it to make it truly yours!</>
+                ) : (
+                  <>Customize your profile with themes, music, Top 8 friends & more!</>
+                )}
+              </p>
+            </div>
+          </div>
+          
+          <Link to="/settings/myspace">
+            <Button className="gap-2 glow-purple group">
+              <Palette className="h-4 w-4" />
+              <span>Customize Now</span>
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </Button>
+          </Link>
+        </div>
+      </div>
+      
+      {/* Decorative sparkles */}
+      <div className="absolute top-2 left-[10%] text-yellow-500 animate-pulse">✦</div>
+      <div className="absolute bottom-2 right-[15%] text-pink-500 animate-pulse" style={{ animationDelay: '0.5s' }}>★</div>
+      <div className="absolute top-3 right-[30%] text-cyan-500 animate-pulse" style={{ animationDelay: '0.3s' }}>✧</div>
+    </div>
+  );
+}
+
+// Preset Music Suggestion Card (for unclaimed profiles)
+interface MusicSuggestionProps {
+  suggestion?: { title: string; artist: string; genre: string };
+  className?: string;
+}
+
+export function MusicSuggestion({ suggestion, className }: MusicSuggestionProps) {
+  if (!suggestion) return null;
+  
+  return (
+    <Card className={cn("myspace-card", className)}>
+      <CardContent className="p-4">
+        <div className="flex items-center gap-3">
+          <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center flex-shrink-0">
+            <Star className="h-6 w-6 text-white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs text-muted-foreground flex items-center gap-1">
+              <Zap className="h-3 w-3 text-yellow-500" />
+              SUGGESTED VIBE
+            </p>
+            <p className="font-semibold truncate text-sm">{suggestion.title}</p>
+            <p className="text-xs text-muted-foreground truncate">
+              {suggestion.artist} • {suggestion.genre}
+            </p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Themed decoration divider
+interface ThemedDividerProps {
+  style?: PresetStyle;
+  className?: string;
+}
+
+export function ThemedDivider({ style, className }: ThemedDividerProps) {
+  const symbols = style === 'scene-kid' 
+    ? ['☆', '♥', '★', '♥', '☆']
+    : style === 'kawaii-star'
+    ? ['✧', '♡', '⭐', '♡', '✧']
+    : style === 'dark-romantic'
+    ? ['🥀', '✦', '🖤', '✦', '🥀']
+    : style === 'y2k-princess'
+    ? ['🦋', '✿', '💫', '✿', '🦋']
+    : style === 'cyber-punk'
+    ? ['◆', '▸', '◈', '◂', '◆']
+    : style === 'cosmic-dreamer'
+    ? ['✦', '☆', '🌙', '☆', '✦']
+    : ['✦', '★', '♡', '★', '✦'];
+
+  return (
+    <div className={cn("flex items-center justify-center gap-2 py-2 text-sm", className)}>
+      {symbols.map((char, i) => (
+        <span
+          key={i}
+          className={cn(
+            "animate-pulse",
+            i % 2 === 0 ? "text-pink-500" : "text-cyan-500"
+          )}
+          style={{ animationDelay: `${i * 0.15}s` }}
+        >
+          {char}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+// Random MySpace-style "Thanks for visiting!" messages
+export function VisitorMessage({ className }: { className?: string }) {
+  const messages = [
+    "Thanks 4 stopping by! ♥",
+    "Thanks for the add! xoxo",
+    "~*~ Welcome to my space ~*~",
+    "Leave some love! ♡",
+    "PC4PC? Sign my guestbook!",
+    "★ You're visitor #random! ★",
+    "Thanks for being here! ✨",
+    "Welcome, friend! 🌟",
+  ];
+  
+  const [message] = useState(() => messages[Math.floor(Math.random() * messages.length)]);
+  
+  return (
+    <div className={cn(
+      "text-center py-2 px-4 rounded-lg",
+      "bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-cyan-500/10",
+      "border border-primary/20",
+      "text-sm font-medium gradient-text",
+      className
+    )}>
+      {message}
+    </div>
   );
 }

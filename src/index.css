@@ -494,3 +494,184 @@
   from { background-position: 0 0; }
   to { background-position: 1000px 500px; }
 }
+
+/* ========================================
+   Preset Profile Effect Overlays
+   ======================================== */
+
+/* Sparkle overlay effect */
+.sparkle-overlay {
+  position: relative;
+}
+
+.sparkle-overlay::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: 
+    radial-gradient(2px 2px at 10% 20%, rgba(255, 255, 255, 0.8), transparent),
+    radial-gradient(2px 2px at 30% 60%, rgba(255, 255, 255, 0.6), transparent),
+    radial-gradient(1px 1px at 50% 30%, rgba(255, 255, 255, 0.9), transparent),
+    radial-gradient(2px 2px at 70% 80%, rgba(255, 255, 255, 0.7), transparent),
+    radial-gradient(1px 1px at 90% 40%, rgba(255, 255, 255, 0.8), transparent);
+  background-repeat: repeat;
+  background-size: 200px 200px;
+  animation: sparkle-shift 8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes sparkle-shift {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+/* Glow overlay effect */
+.glow-overlay {
+  position: relative;
+}
+
+.glow-overlay::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse at 50% 50%,
+    rgba(255, 255, 255, 0.1) 0%,
+    transparent 70%
+  );
+  animation: glow-pulse 4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes glow-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.5; }
+  50% { transform: scale(1.05); opacity: 0.8; }
+}
+
+/* Rainbow text animation */
+.rainbow-text {
+  background: linear-gradient(
+    90deg,
+    #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #9400d3, #ff0000
+  );
+  background-size: 400% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: rainbow-shift 8s linear infinite;
+}
+
+@keyframes rainbow-shift {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 400% 50%; }
+}
+
+/* Glitch effect for cyberpunk */
+.glitch-text {
+  position: relative;
+}
+
+.glitch-text::before,
+.glitch-text::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.glitch-text::before {
+  left: 2px;
+  text-shadow: -2px 0 #ff00ff;
+  clip-path: inset(44% 0 56% 0);
+  animation: glitch-anim 5s infinite linear alternate-reverse;
+}
+
+.glitch-text::after {
+  left: -2px;
+  text-shadow: 2px 0 #00ffff;
+  clip-path: inset(44% 0 56% 0);
+  animation: glitch-anim 5s infinite linear alternate-reverse;
+  animation-delay: -2.5s;
+}
+
+@keyframes glitch-anim {
+  0% { clip-path: inset(20% 0 71% 0); }
+  20% { clip-path: inset(44% 0 31% 0); }
+  40% { clip-path: inset(71% 0 12% 0); }
+  60% { clip-path: inset(12% 0 66% 0); }
+  80% { clip-path: inset(85% 0 2% 0); }
+  100% { clip-path: inset(45% 0 45% 0); }
+}
+
+/* Retro scanline effect */
+.retro-scanlines {
+  position: relative;
+}
+
+.retro-scanlines::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.1),
+    rgba(0, 0, 0, 0.1) 1px,
+    transparent 1px,
+    transparent 2px
+  );
+  pointer-events: none;
+}
+
+/* Floating animation for decorative elements */
+@keyframes float-gentle {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-5px) rotate(1deg); }
+  75% { transform: translateY(5px) rotate(-1deg); }
+}
+
+.float-gentle {
+  animation: float-gentle 6s ease-in-out infinite;
+}
+
+/* Scene kid specific decorations */
+.scene-crosses::before {
+  content: '✝ ✝ ✝';
+  @apply absolute -top-2 left-1/2 -translate-x-1/2 text-pink-500 text-xs tracking-widest opacity-60;
+}
+
+/* Kawaii hearts decoration */
+.kawaii-hearts::after {
+  content: '♡ ♡ ♡';
+  @apply absolute -bottom-2 left-1/2 -translate-x-1/2 text-pink-400 text-xs tracking-widest animate-pulse;
+}
+
+/* Y2K butterfly decoration */
+.y2k-butterflies {
+  position: relative;
+}
+
+.y2k-butterflies::before,
+.y2k-butterflies::after {
+  content: '🦋';
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  animation: flutter 2s ease-in-out infinite;
+}
+
+.y2k-butterflies::before {
+  left: -20px;
+}
+
+.y2k-butterflies::after {
+  right: -20px;
+  animation-delay: 0.5s;
+}
+
+@keyframes flutter {
+  0%, 100% { transform: translateY(-50%) rotate(0deg); }
+  25% { transform: translateY(-55%) rotate(5deg); }
+  75% { transform: translateY(-45%) rotate(-5deg); }
+}
