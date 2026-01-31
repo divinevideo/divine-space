@@ -104,16 +104,16 @@ export default function Profile({ pubkey }: ProfileProps) {
   // API can return null for various fields when user data isn't available
   const profile = divineUser.profile ?? {};
   const social = divineUser.social ?? { follower_count: 0, following_count: 0 };
-  const stats = divineUser.stats ?? { 
-    video_count: 0, 
-    total_reactions: 0,
-    total_comments: 0,
-    total_reposts: 0
+  const stats = {
+    video_count: divineUser.stats?.video_count ?? 0, 
+    total_reactions: divineUser.stats?.total_reactions ?? 0,
+    total_comments: divineUser.stats?.total_comments ?? 0,
+    total_reposts: divineUser.stats?.total_reposts ?? 0
   };
-  const engagement = divineUser.engagement ?? { 
-    avg_reactions_per_video: 0, 
-    avg_comments_per_video: 0, 
-    engagement_rate: 0
+  const engagement = { 
+    avg_reactions_per_video: divineUser.engagement?.avg_reactions_per_video ?? 0, 
+    avg_comments_per_video: divineUser.engagement?.avg_comments_per_video ?? 0, 
+    engagement_rate: divineUser.engagement?.engagement_rate ?? 0
   };
   const videos = videosData?.pages.flat() ?? [];
 
