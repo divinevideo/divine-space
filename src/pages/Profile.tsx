@@ -93,7 +93,9 @@ export default function Profile({ pubkey }: ProfileProps) {
     return <NotFound />;
   }
 
-  const { profile, social, stats, engagement } = divineUser;
+  const { social, stats, engagement } = divineUser;
+  // Profile can be null for users who haven't set up their profile
+  const profile = divineUser.profile ?? {};
   const videos = videosData?.pages.flat() ?? [];
 
   const handleFollow = () => {

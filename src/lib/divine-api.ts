@@ -85,7 +85,7 @@ export interface UserEngagement {
 
 export interface UserResponse {
   pubkey: string;
-  profile: UserProfile;
+  profile: UserProfile | null;
   social: UserSocial;
   stats: UserStats;
   engagement: UserEngagement;
