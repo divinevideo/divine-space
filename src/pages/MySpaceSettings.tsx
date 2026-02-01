@@ -25,12 +25,12 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Users, 
-  Music, 
-  Palette, 
-  Sparkles, 
-  Save, 
+import {
+  Users,
+  Music,
+  Palette,
+  Sparkles,
+  Save,
   Loader2,
   X,
   Plus,
@@ -39,12 +39,24 @@ import {
   Quote,
   Smile,
   MessageSquare,
-  Image
+  Image,
+  Upload,
+  Search,
+  ExternalLink,
+  Play
 } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
+import { useUploadFile } from '@/hooks/useUploadFile';
 import { cn } from '@/lib/utils';
 import { nip19 } from 'nostr-tools';
 import { KeycastLoginArea } from '@/components/auth/KeycastLoginArea';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
 
 export default function MySpaceSettings() {
   const { pubkey, isAuthenticated } = useKeycast();
@@ -265,69 +277,16 @@ function MySpaceSettingsContent({ pubkey }: { pubkey: string }) {
 
           {/* Music Settings */}
           <TabsContent value="music">
-            <Card className="myspace-card">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Music className="h-5 w-5 text-primary" />
-                  Profile Song
-                </CardTitle>
-                <CardDescription>
-                  Add a song that plays when people visit your profile
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label htmlFor="musicUrl">Song URL</Label>
-                  <Input
-                    id="musicUrl"
-                    value={musicUrl}
-                    onChange={(e) => setMusicUrl(e.target.value)}
-                    placeholder="https://wavlake.com/track/... or direct audio URL"
-                    className="mt-1"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Link to a Wavlake track, direct MP3, or other audio URL
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="musicTitle">Song Title</Label>
-                    <Input
-                      id="musicTitle"
-                      value={musicTitle}
-                      onChange={(e) => setMusicTitle(e.target.value)}
-                      placeholder="Bohemian Rhapsody"
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="musicArtist">Artist</Label>
-                    <Input
-                      id="musicArtist"
-                      value={musicArtist}
-                      onChange={(e) => setMusicArtist(e.target.value)}
-                      placeholder="Queen"
-                      className="mt-1"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
-                  <div>
-                    <Label htmlFor="autoplay" className="font-medium">Auto-play on visit</Label>
-                    <p className="text-xs text-muted-foreground">
-                      Play music automatically when someone visits your profile
-                    </p>
-                  </div>
-                  <Switch
-                    id="autoplay"
-                    checked={autoplay}
-                    onCheckedChange={setAutoplay}
-                  />
-                </div>
-              </CardContent>
-            </Card>
+            <MusicSettingsTab
+              musicUrl={musicUrl}
+              setMusicUrl={setMusicUrl}
+              musicTitle={musicTitle}
+              setMusicTitle={setMusicTitle}
+              musicArtist={musicArtist}
+              setMusicArtist={setMusicArtist}
+              autoplay={autoplay}
+              setAutoplay={setAutoplay}
+            />
           </TabsContent>
 
           {/* Top 8 Friends */}
@@ -589,9 +548,9 @@ function TopFriendSlot({ pubkey, position, onRemove, isRemoving }: {
   );
 }
 
-function AddFriendCard({ pubkey, onAdd, disabled }: { 
-  pubkey: string; 
-  onAdd: () => void; 
+function AddFriendCard({ pubkey, onAdd, disabled }: {
+  pubkey: string;
+  onAdd: () => void;
   disabled: boolean;
 }) {
   const { data: author } = useAuthor(pubkey);
@@ -614,4 +573,326 @@ function AddFriendCard({ pubkey, onAdd, disabled }: {
       <Plus className="h-4 w-4 mx-auto mt-1 text-green-500" />
     </button>
   );
+}
+
+// Music Settings Tab with Upload and Search
+function MusicSettingsTab({
+  musicUrl,
+  setMusicUrl,
+  musicTitle,
+  setMusicTitle,
+  musicArtist,
+  setMusicArtist,
+  autoplay,
+  setAutoplay,
+}: {
+  musicUrl: string;
+  setMusicUrl: (url: string) => void;
+  musicTitle: string;
+  setMusicTitle: (title: string) => void;
+  musicArtist: string;
+  setMusicArtist: (artist: string) => void;
+  autoplay: boolean;
+  setAutoplay: (autoplay: boolean) => void;
+}) {
+  const { toast } = useToast();
+  const { mutate: uploadFile, isPending: isUploading } = useUploadFile();
+  const [showSearchDialog, setShowSearchDialog] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<WavlakeTrack[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate audio file
+    if (!file.type.startsWith('audio/')) {
+      toast({
+        title: 'Invalid file type',
+        description: 'Please select an audio file (MP3, WAV, OGG, etc.)',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Check file size (max 50MB)
+    if (file.size > 50 * 1024 * 1024) {
+      toast({
+        title: 'File too large',
+        description: 'Please select an audio file under 50MB',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    uploadFile(file, {
+      onSuccess: (tags) => {
+        // Find the URL from the returned tags
+        const urlTag = tags.find(t => t[0] === 'url');
+        if (urlTag) {
+          setMusicUrl(urlTag[1]);
+          // Try to extract title from filename
+          const fileName = file.name.replace(/\.[^/.]+$/, '');
+          if (!musicTitle) {
+            setMusicTitle(fileName);
+          }
+          toast({ title: 'Audio uploaded successfully!' });
+        }
+      },
+      onError: (error) => {
+        toast({
+          title: 'Upload failed',
+          description: error.message,
+          variant: 'destructive',
+        });
+      },
+    });
+
+    // Reset the input
+    event.target.value = '';
+  };
+
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) return;
+
+    setIsSearching(true);
+    try {
+      // Search Wavlake API
+      const response = await fetch(
+        `https://api.wavlake.com/v1/search?query=${encodeURIComponent(searchQuery)}&type=track&limit=10`
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setSearchResults(data.tracks || data.data || []);
+      }
+    } catch {
+      // Fallback: show example tracks
+      toast({
+        title: 'Search unavailable',
+        description: 'Try entering a direct Wavlake or audio URL instead',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const selectTrack = (track: WavlakeTrack) => {
+    setMusicUrl(track.mediaUrl || `https://wavlake.com/track/${track.id}`);
+    setMusicTitle(track.title);
+    setMusicArtist(track.artist?.name || track.artistName || '');
+    setShowSearchDialog(false);
+    toast({ title: `Selected: ${track.title}` });
+  };
+
+  return (
+    <Card className="myspace-card">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Music className="h-5 w-5 text-primary" />
+          Profile Song
+        </CardTitle>
+        <CardDescription>
+          Add a song that plays when people visit your profile
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Upload and Search Buttons */}
+        <div className="flex gap-2 mb-4">
+          <Button
+            variant="outline"
+            className="gap-2 flex-1"
+            disabled={isUploading}
+            onClick={() => document.getElementById('audio-upload')?.click()}
+          >
+            {isUploading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Upload className="h-4 w-4" />
+            )}
+            {isUploading ? 'Uploading...' : 'Upload Audio'}
+          </Button>
+          <input
+            id="audio-upload"
+            type="file"
+            accept="audio/*"
+            className="hidden"
+            onChange={handleFileUpload}
+          />
+          <Button
+            variant="outline"
+            className="gap-2 flex-1"
+            onClick={() => setShowSearchDialog(true)}
+          >
+            <Search className="h-4 w-4" />
+            Browse Wavlake
+          </Button>
+        </div>
+
+        <div className="relative">
+          <Label htmlFor="musicUrl">Song URL</Label>
+          <Input
+            id="musicUrl"
+            value={musicUrl}
+            onChange={(e) => setMusicUrl(e.target.value)}
+            placeholder="https://wavlake.com/track/... or direct audio URL"
+            className="mt-1"
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            Upload an audio file, search Wavlake, or paste a direct audio URL
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="musicTitle">Song Title</Label>
+            <Input
+              id="musicTitle"
+              value={musicTitle}
+              onChange={(e) => setMusicTitle(e.target.value)}
+              placeholder="Bohemian Rhapsody"
+              className="mt-1"
+            />
+          </div>
+          <div>
+            <Label htmlFor="musicArtist">Artist</Label>
+            <Input
+              id="musicArtist"
+              value={musicArtist}
+              onChange={(e) => setMusicArtist(e.target.value)}
+              placeholder="Queen"
+              className="mt-1"
+            />
+          </div>
+        </div>
+
+        {/* Preview player if URL is set */}
+        {musicUrl && (
+          <div className="p-4 rounded-lg bg-muted/50">
+            <Label className="text-xs text-muted-foreground mb-2 block">Preview</Label>
+            <audio
+              src={musicUrl}
+              controls
+              className="w-full h-10"
+              onError={() => {
+                toast({
+                  title: 'Could not load audio',
+                  description: 'The URL may be invalid or not a direct audio link',
+                  variant: 'destructive',
+                });
+              }}
+            />
+          </div>
+        )}
+
+        <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
+          <div>
+            <Label htmlFor="autoplay" className="font-medium">Auto-play on visit</Label>
+            <p className="text-xs text-muted-foreground">
+              Play music automatically when someone visits your profile
+            </p>
+          </div>
+          <Switch
+            id="autoplay"
+            checked={autoplay}
+            onCheckedChange={setAutoplay}
+          />
+        </div>
+      </CardContent>
+
+      {/* Wavlake Search Dialog */}
+      <Dialog open={showSearchDialog} onOpenChange={setShowSearchDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Music className="h-5 w-5" />
+              Browse Wavlake Music
+            </DialogTitle>
+            <DialogDescription>
+              Search for music on Wavlake - Bitcoin's music streaming platform
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="flex gap-2">
+              <Input
+                placeholder="Search for songs or artists..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              />
+              <Button onClick={handleSearch} disabled={isSearching}>
+                {isSearching ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Search className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+
+            {/* Popular/Featured tracks suggestion */}
+            {searchResults.length === 0 && !isSearching && (
+              <div className="text-center py-8 text-muted-foreground">
+                <Music className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                <p>Search for songs on Wavlake</p>
+                <p className="text-sm mt-1">
+                  Or visit{' '}
+                  <a
+                    href="https://wavlake.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline inline-flex items-center gap-1"
+                  >
+                    wavlake.com <ExternalLink className="h-3 w-3" />
+                  </a>{' '}
+                  to browse and copy a track URL
+                </p>
+              </div>
+            )}
+
+            {/* Search results */}
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {searchResults.map((track) => (
+                <button
+                  key={track.id}
+                  onClick={() => selectTrack(track)}
+                  className="w-full p-3 rounded-lg border hover:border-primary hover:bg-muted/50 transition-all text-left flex items-center gap-3"
+                >
+                  {track.artworkUrl ? (
+                    <img
+                      src={track.artworkUrl}
+                      alt={track.title}
+                      className="w-12 h-12 rounded object-cover"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded bg-muted flex items-center justify-center">
+                      <Music className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate">{track.title}</p>
+                    <p className="text-sm text-muted-foreground truncate">
+                      {track.artist?.name || track.artistName}
+                    </p>
+                  </div>
+                  <Play className="h-5 w-5 text-muted-foreground" />
+                </button>
+              ))}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </Card>
+  );
+}
+
+// Wavlake track type
+interface WavlakeTrack {
+  id: string;
+  title: string;
+  artist?: { name: string };
+  artistName?: string;
+  artworkUrl?: string;
+  mediaUrl?: string;
 }
