@@ -545,23 +545,28 @@ async function handleRequest(event) {
     // Look up the subdomain in KV store
     const entry = await namesStore.get(`name:${subdomain}`);
 
-    if (entry) {
-      const data = await entry.json();
-      console.log('Found user for subdomain:', subdomain, data.pubkey);
+    // Open content store to read index.html directly
+    let contentStore;
+    try {
+      contentStore = new KVStore('divine-space-content');
+    } catch (e) {
+      console.error('Failed to open content KV store:', e);
+    }
 
-      // Serve the SPA with user context injected
-      // We'll modify the HTML to include the user's pubkey
-      const spaResponse = await publisherServer.serveRequest(new Request(
-        new URL('/', url.origin).toString(),
-        { method: 'GET' }
-      ));
+    if (contentStore) {
+      // Get index.html from content store (key format used by static publisher)
+      const htmlEntry = await contentStore.get('file:default:/index.html');
+      if (htmlEntry) {
+        const html = await htmlEntry.text();
 
-      if (spaResponse) {
-        // Clone the response and inject the user data
-        const html = await spaResponse.text();
-        const injectedHtml = html.replace(
-          '<head>',
-          `<head>
+        if (entry) {
+          // User found - inject their data
+          const data = await entry.json();
+          console.log('Found user for subdomain:', subdomain, data.pubkey);
+
+          const injectedHtml = html.replace(
+            '<head>',
+            `<head>
     <script>
       window.__DIVINE_SPACE_USER__ = {
         subdomain: "${subdomain}",
@@ -569,44 +574,37 @@ async function handleRequest(event) {
         nip05: "${subdomain}@divine.space"
       };
     </script>`
-        );
+          );
 
-        return new Response(injectedHtml, {
-          status: 200,
-          headers: {
-            'Content-Type': 'text/html; charset=utf-8',
-            'Cache-Control': 'public, max-age=60',
-          },
-        });
-      }
-    } else {
-      // Subdomain not registered - show a "claim this name" page
-      console.log('Subdomain not registered:', subdomain);
+          return new Response(injectedHtml, {
+            status: 200,
+            headers: {
+              'Content-Type': 'text/html; charset=utf-8',
+              'Cache-Control': 'public, max-age=60',
+            },
+          });
+        } else {
+          // Subdomain not registered - show claim page
+          console.log('Subdomain not registered:', subdomain);
 
-      const spaResponse = await publisherServer.serveRequest(new Request(
-        new URL('/', url.origin).toString(),
-        { method: 'GET' }
-      ));
-
-      if (spaResponse) {
-        const html = await spaResponse.text();
-        const injectedHtml = html.replace(
-          '<head>',
-          `<head>
+          const injectedHtml = html.replace(
+            '<head>',
+            `<head>
     <script>
       window.__DIVINE_SPACE_UNCLAIMED__ = {
         subdomain: "${subdomain}"
       };
     </script>`
-        );
+          );
 
-        return new Response(injectedHtml, {
-          status: 200,
-          headers: {
-            'Content-Type': 'text/html; charset=utf-8',
-            'Cache-Control': 'public, max-age=60',
-          },
-        });
+          return new Response(injectedHtml, {
+            status: 200,
+            headers: {
+              'Content-Type': 'text/html; charset=utf-8',
+              'Cache-Control': 'public, max-age=60',
+            },
+          });
+        }
       }
     }
   }

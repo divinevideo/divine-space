@@ -512,10 +512,18 @@ function Top8FriendsEditor({ pubkey, profile }: { pubkey: string; profile: MySpa
             Add to Top 8
           </CardTitle>
           <CardDescription>
-            Select from people you follow ({availableFriends.length} available)
+            Search for anyone or select from people you follow
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          {/* Search for any user */}
+          <SearchAddFriend
+            onAdd={handleAddFriend}
+            disabled={topFriends.length >= 8 || isAdding}
+            excludePubkeys={topFriendPubkeys}
+          />
+
+          {/* Following list */}
           {followingLoading ? (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {Array.from({ length: 4 }).map((_, i) => (
@@ -523,21 +531,23 @@ function Top8FriendsEditor({ pubkey, profile }: { pubkey: string; profile: MySpa
               ))}
             </div>
           ) : availableFriends.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <p>No more friends to add</p>
-              <p className="text-sm">Follow more people to add them to your Top 8!</p>
+            <div className="text-center py-6 text-muted-foreground">
+              <p className="text-sm">No friends from your following list to add</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 max-h-64 overflow-y-auto">
-              {availableFriends.slice(0, 20).map((pk) => (
-                <AddFriendCard 
-                  key={pk}
-                  pubkey={pk}
-                  onAdd={() => handleAddFriend(pk)}
-                  disabled={topFriends.length >= 8 || isAdding}
-                />
-              ))}
-            </div>
+            <>
+              <div className="text-xs text-muted-foreground">From your following list:</div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 max-h-64 overflow-y-auto">
+                {availableFriends.slice(0, 20).map((pk) => (
+                  <AddFriendCard
+                    key={pk}
+                    pubkey={pk}
+                    onAdd={() => handleAddFriend(pk)}
+                    disabled={topFriends.length >= 8 || isAdding}
+                  />
+                ))}
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
@@ -600,6 +610,143 @@ function AddFriendCard({ pubkey, onAdd, disabled }: {
         <AvatarFallback>{(metadata?.name || 'A')[0].toUpperCase()}</AvatarFallback>
       </Avatar>
       <p className="text-xs truncate">{metadata?.display_name || metadata?.name || 'Anonymous'}</p>
+      <Plus className="h-4 w-4 mx-auto mt-1 text-green-500" />
+    </button>
+  );
+}
+
+// Search for any user to add
+function SearchAddFriend({ onAdd, disabled, excludePubkeys }: {
+  onAdd: (pubkey: string) => void;
+  disabled: boolean;
+  excludePubkeys: Set<string>;
+}) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Array<{ pubkey: string; name?: string; picture?: string }>>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const { toast } = useToast();
+
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) return;
+
+    setIsSearching(true);
+    try {
+      // Check if it's a pubkey or npub
+      let pubkeyToAdd: string | null = null;
+
+      if (searchQuery.startsWith('npub1')) {
+        try {
+          const decoded = nip19.decode(searchQuery);
+          if (decoded.type === 'npub') {
+            pubkeyToAdd = decoded.data;
+          }
+        } catch {
+          // Not a valid npub, continue with search
+        }
+      } else if (/^[a-f0-9]{64}$/i.test(searchQuery)) {
+        pubkeyToAdd = searchQuery.toLowerCase();
+      }
+
+      if (pubkeyToAdd) {
+        // Direct pubkey/npub - add directly
+        if (excludePubkeys.has(pubkeyToAdd)) {
+          toast({ title: 'Already in your Top 8', variant: 'destructive' });
+        } else {
+          setSearchResults([{ pubkey: pubkeyToAdd }]);
+        }
+      } else {
+        // Search by name using divine API
+        const response = await fetch(
+          `https://relay.divine.video/api/search/profiles?q=${encodeURIComponent(searchQuery)}&limit=10`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          const results = (data || [])
+            .filter((u: { pubkey: string }) => !excludePubkeys.has(u.pubkey))
+            .map((u: { pubkey: string; profile?: { name?: string; display_name?: string; picture?: string } }) => ({
+              pubkey: u.pubkey,
+              name: u.profile?.display_name || u.profile?.name,
+              picture: u.profile?.picture,
+            }));
+          setSearchResults(results);
+        }
+      }
+    } catch (error) {
+      toast({
+        title: 'Search failed',
+        description: 'Could not search for users',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleAdd = (pubkey: string) => {
+    onAdd(pubkey);
+    setSearchResults([]);
+    setSearchQuery('');
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex gap-2">
+        <Input
+          placeholder="Search by name or paste npub/pubkey..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+          className="flex-1"
+        />
+        <Button onClick={handleSearch} disabled={isSearching || !searchQuery.trim()} variant="secondary">
+          {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+        </Button>
+      </div>
+
+      {searchResults.length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {searchResults.map((user) => (
+            <SearchResultCard
+              key={user.pubkey}
+              pubkey={user.pubkey}
+              name={user.name}
+              picture={user.picture}
+              onAdd={() => handleAdd(user.pubkey)}
+              disabled={disabled}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SearchResultCard({ pubkey, name, picture, onAdd, disabled }: {
+  pubkey: string;
+  name?: string;
+  picture?: string;
+  onAdd: () => void;
+  disabled: boolean;
+}) {
+  const { data: author } = useAuthor(pubkey);
+  const metadata = author?.metadata;
+  const displayName = name || metadata?.display_name || metadata?.name || 'Anonymous';
+  const displayPicture = picture || metadata?.picture;
+
+  return (
+    <button
+      onClick={onAdd}
+      disabled={disabled}
+      className={cn(
+        "p-3 rounded-lg border text-center transition-all hover:border-primary bg-primary/5",
+        disabled && "opacity-50 cursor-not-allowed"
+      )}
+    >
+      <Avatar className="h-10 w-10 mx-auto mb-2">
+        <AvatarImage src={displayPicture} />
+        <AvatarFallback>{displayName[0].toUpperCase()}</AvatarFallback>
+      </Avatar>
+      <p className="text-xs truncate">{displayName}</p>
       <Plus className="h-4 w-4 mx-auto mt-1 text-green-500" />
     </button>
   );
