@@ -24,3 +24,5 @@ service_id = "COuE4goKNdS56m7ZBbxgNn"
   [setup.kv_stores]
 
     [setup.kv_stores.divine-space-content]
+
+    [setup.kv_stores.divine-space-names]
