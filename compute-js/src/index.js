@@ -545,28 +545,59 @@ async function handleRequest(event) {
     // Look up the subdomain in KV store
     const entry = await namesStore.get(`name:${subdomain}`);
 
-    // Open content store to read index.html directly
+    // Open content KV store to read index file directly
+    // The publisherServer doesn't work with subdomain requests
     let contentStore;
     try {
       contentStore = new KVStore('divine-space-content');
     } catch (e) {
       console.error('Failed to open content KV store:', e);
+      return new Response('Error: Cannot access content store', { status: 500 });
     }
 
-    if (contentStore) {
-      // Get index.html from content store (key format used by static publisher)
-      const htmlEntry = await contentStore.get('file:default:/index.html');
-      if (htmlEntry) {
-        const html = await htmlEntry.text();
+    // Read the index file that maps paths to content hashes
+    // Note: The collection name is 'undefined' due to a quirk in how the static publisher was set up
+    const indexEntry = await contentStore.get('default_index_undefined');
+    if (!indexEntry) {
+      console.error('Index file not found in KV store');
+      return new Response('Error: Index not found', { status: 500 });
+    }
 
-        if (entry) {
-          // User found - inject their data
-          const data = await entry.json();
-          console.log('Found user for subdomain:', subdomain, data.pubkey);
+    const indexData = await indexEntry.json();
 
-          const injectedHtml = html.replace(
-            '<head>',
-            `<head>
+    // Find the index.html entry in the index - structure is { '/path': { key: 'sha256:...', ... } }
+    const indexHtmlInfo = indexData['/index.html'];
+    if (!indexHtmlInfo) {
+      console.error('index.html not found in index');
+      return new Response('Error: index.html not found', { status: 500 });
+    }
+
+    // Get the content hash for index.html - key format is "sha256:HASH"
+    const contentHash = indexHtmlInfo.key.replace('sha256:', '');
+    const contentKey = `default_files_sha256_${contentHash}`;
+
+    // Read the actual HTML content
+    const htmlEntry = await contentStore.get(contentKey);
+    if (!htmlEntry) {
+      console.error('HTML content not found:', contentKey);
+      return new Response('Error: HTML content not found', { status: 500 });
+    }
+
+    const html = await htmlEntry.text();
+    if (!html || html.length === 0) {
+      console.error('Empty HTML content');
+      return new Response('Error: Empty HTML', { status: 500 });
+    }
+
+    // Inject the subdomain data into HTML
+    if (entry) {
+      // User found - inject their data
+      const data = await entry.json();
+      console.log('Found user for subdomain:', subdomain, data.pubkey);
+
+      const injectedHtml = html.replace(
+        '<head>',
+        `<head>
     <script>
       window.__DIVINE_SPACE_USER__ = {
         subdomain: "${subdomain}",
@@ -574,38 +605,36 @@ async function handleRequest(event) {
         nip05: "${subdomain}@divine.space"
       };
     </script>`
-          );
+      );
 
-          return new Response(injectedHtml, {
-            status: 200,
-            headers: {
-              'Content-Type': 'text/html; charset=utf-8',
-              'Cache-Control': 'public, max-age=60',
-            },
-          });
-        } else {
-          // Subdomain not registered - show claim page
-          console.log('Subdomain not registered:', subdomain);
+      return new Response(injectedHtml, {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/html; charset=utf-8',
+          'Cache-Control': 'public, max-age=60',
+        },
+      });
+    } else {
+      // Subdomain not registered - show claim page
+      console.log('Subdomain not registered:', subdomain);
 
-          const injectedHtml = html.replace(
-            '<head>',
-            `<head>
+      const injectedHtml = html.replace(
+        '<head>',
+        `<head>
     <script>
       window.__DIVINE_SPACE_UNCLAIMED__ = {
         subdomain: "${subdomain}"
       };
     </script>`
-          );
+      );
 
-          return new Response(injectedHtml, {
-            status: 200,
-            headers: {
-              'Content-Type': 'text/html; charset=utf-8',
-              'Cache-Control': 'public, max-age=60',
-            },
-          });
-        }
-      }
+      return new Response(injectedHtml, {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/html; charset=utf-8',
+          'Cache-Control': 'public, max-age=60',
+        },
+      });
     }
   }
 
