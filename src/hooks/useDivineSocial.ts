@@ -259,6 +259,35 @@ export function useVideoComments(videoId: string | undefined) {
 }
 
 /**
+ * Get list of pubkeys the current user follows (from Nostr contact list)
+ */
+export function useFollowingList(pubkey: string | undefined) {
+  const { nostr } = useNostr();
+
+  return useQuery({
+    queryKey: ['nostr', 'contactList', pubkey],
+    queryFn: async () => {
+      if (!pubkey) return [];
+
+      const events = await nostr.query([{
+        kinds: [3],
+        authors: [pubkey],
+        limit: 1,
+      }]);
+
+      if (events.length === 0) return [];
+
+      const contactList = events[0];
+      return contactList.tags
+        .filter(([tag]) => tag === 'p')
+        .map(([, pk]) => pk);
+    },
+    enabled: !!pubkey,
+    staleTime: 60000, // Cache for 1 minute
+  });
+}
+
+/**
  * Repost a video
  */
 export function useRepostVideo() {

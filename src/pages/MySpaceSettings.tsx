@@ -14,6 +14,7 @@ import {
   type ThemeId
 } from '@/hooks/useMySpaceProfile';
 import { useDivineUserFollowing } from '@/hooks/useDivineUser';
+import { useFollowingList } from '@/hooks/useDivineSocial';
 import { useAuthor } from '@/hooks/useAuthor';
 import { MOOD_OPTIONS } from '@/components/ProfileWidgets';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -417,16 +418,25 @@ function MySpaceSettingsContent({ pubkey }: { pubkey: string }) {
 
 // Top 8 Friends Editor Component
 function Top8FriendsEditor({ pubkey, profile }: { pubkey: string; profile: MySpaceProfileData | null | undefined }) {
-  const { data: following, isLoading: followingLoading } = useDivineUserFollowing(pubkey);
+  // Try divine relay first, fall back to Nostr contact list
+  const { data: divineFollowing, isLoading: divineLoading } = useDivineUserFollowing(pubkey);
+  const { data: nostrFollowing, isLoading: nostrLoading } = useFollowingList(pubkey);
+
   const { mutate: addFriend, isPending: isAdding } = useAddTopFriend();
   const { mutate: removeFriend, isPending: isRemoving } = useRemoveTopFriend();
   const { toast } = useToast();
+
+  // Use divine following if available, otherwise fall back to Nostr contact list
+  const followingPubkeys = (divineFollowing?.pubkeys?.length ?? 0) > 0
+    ? divineFollowing?.pubkeys
+    : nostrFollowing;
+  const followingLoading = divineLoading || (divineFollowing?.pubkeys?.length === 0 && nostrLoading);
 
   const topFriends = profile?.topFriends || [];
   const topFriendPubkeys = new Set(topFriends.map(f => f.pubkey));
 
   // Get available friends (following but not in top 8)
-  const availableFriends = (following?.pubkeys || []).filter(pk => !topFriendPubkeys.has(pk));
+  const availableFriends = (followingPubkeys || []).filter(pk => !topFriendPubkeys.has(pk));
 
   const handleAddFriend = (friendPubkey: string) => {
     addFriend(friendPubkey, {

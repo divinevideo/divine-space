@@ -238,7 +238,9 @@ export async function fetchUserFollowers(pubkey: string, options?: {
 export async function fetchUserFollowing(pubkey: string): Promise<{ pubkeys: string[] }> {
   const response = await fetch(`${API_BASE}/users/${pubkey}/following`);
   if (!response.ok) throw new Error('Failed to fetch following');
-  return response.json();
+  const data = await response.json();
+  // API returns {following: [], total: N} - normalize to {pubkeys: []}
+  return { pubkeys: data.following || data.pubkeys || [] };
 }
 
 export async function fetchUserSocial(pubkey: string): Promise<UserSocial> {
