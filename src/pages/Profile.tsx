@@ -10,10 +10,9 @@ import { useUserPostsInfinite } from '@/hooks/useUserPosts';
 import { VideoCard, VideoCardSkeleton } from '@/components/VideoCard';
 import { Top8Friends } from '@/components/Top8Friends';
 import { ProfileMusicPlayer } from '@/components/ProfileMusicPlayer';
-import { NoteContent } from '@/components/NoteContent';
 import { MoodWidget, StatusWidget, QuoteWidget, ProfileBlings, PresetBadge, ClaimProfileBanner, MusicSuggestion, ThemedDivider, VisitorMessage, InterestsCloud, BlinkieBar } from '@/components/ProfileWidgets';
 import { ComposePost } from '@/components/ComposePost';
-import { PostActions } from '@/components/PostActions';
+import { ThreadedPost } from '@/components/ThreadedPost';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -585,28 +584,7 @@ export default function Profile({ pubkey, isSubdomain, subdomain }: ProfileProps
                   <>
                     <div className="space-y-4">
                       {posts.map((post) => (
-                        <Card key={post.id} className="myspace-card hover:shadow-md transition-shadow">
-                          <CardContent className="py-4">
-                            <div className="whitespace-pre-wrap break-words text-sm">
-                              <NoteContent event={post} />
-                            </div>
-                            <div className="flex items-center justify-between mt-3">
-                              <time
-                                dateTime={new Date(post.created_at * 1000).toISOString()}
-                                className="text-xs text-muted-foreground"
-                              >
-                                {new Date(post.created_at * 1000).toLocaleDateString(undefined, {
-                                  year: 'numeric',
-                                  month: 'short',
-                                  day: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                })}
-                              </time>
-                              <PostActions post={post} compact />
-                            </div>
-                          </CardContent>
-                        </Card>
+                        <ThreadedPost key={post.id} post={post} />
                       ))}
                     </div>
 

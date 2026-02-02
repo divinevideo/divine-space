@@ -1,6 +1,6 @@
 import { NostrEvent } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 
 /**
  * Check if an event is a reply (has 'e' tags referencing parent events)
@@ -120,5 +120,57 @@ export function useUserAllPostsInfinite(pubkey: string | undefined) {
       return lastEvent ? lastEvent.created_at - 1 : undefined;
     },
     enabled: !!pubkey,
+  });
+}
+
+/**
+ * Fetch replies to a specific post (kind 1 events with 'e' tag pointing to this post)
+ * Returns threaded reply structure with direct replies and nested descendants
+ */
+export function usePostReplies(postId: string | undefined) {
+  const { nostr } = useNostr();
+
+  return useQuery({
+    queryKey: ['nostr', 'post', 'replies', postId],
+    queryFn: async ({ signal }) => {
+      if (!postId) {
+        return { replies: [], replyCount: 0, directReplies: [], getDirectReplies: () => [] };
+      }
+
+      // Fetch all kind 1 events that reference this post via 'e' tag
+      const events = await nostr.query(
+        [{ kinds: [1], '#e': [postId], limit: 100 }],
+        { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) }
+      );
+
+      // Helper to get the direct parent ID from an event's e tags
+      const getParentId = (event: NostrEvent): string | undefined => {
+        // Per NIP-10: look for 'reply' marker first, then fall back to last 'e' tag
+        const replyTag = event.tags.find(t => t[0] === 'e' && t[3] === 'reply');
+        if (replyTag) return replyTag[1];
+
+        // Fallback: last 'e' tag is the direct parent
+        const eTags = event.tags.filter(t => t[0] === 'e');
+        return eTags.length > 0 ? eTags[eTags.length - 1][1] : undefined;
+      };
+
+      // Get direct replies (events whose parent is the given ID)
+      const getDirectReplies = (parentId: string): NostrEvent[] => {
+        return events
+          .filter(event => getParentId(event) === parentId)
+          .sort((a, b) => a.created_at - b.created_at); // Oldest first for conversation flow
+      };
+
+      const directReplies = getDirectReplies(postId);
+
+      return {
+        replies: events,
+        replyCount: events.length,
+        directReplies,
+        getDirectReplies,
+      };
+    },
+    enabled: !!postId,
+    staleTime: 30 * 1000, // 30 seconds
   });
 }
