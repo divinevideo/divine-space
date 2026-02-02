@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
-import { useKeycast } from '@/contexts/KeycastContext';
+import { useAuth } from './useAuth';
 import { useKeycastPublish } from './useKeycastPublish';
 import {
   parseStatusFromKind30315,
@@ -224,7 +224,7 @@ export function useUserStatus(pubkey: string | undefined) {
  * await updateMood({ content: 'Feeling great!' });
  */
 export function useUpdateMoodStatus() {
-  const { pubkey } = useKeycast();
+  const { pubkey } = useAuth();
   const { mutateAsync: publish } = useKeycastPublish();
   const queryClient = useQueryClient();
 
@@ -276,7 +276,7 @@ export function useUpdateMoodStatus() {
  * });
  */
 export function useUpdateMusicStatus() {
-  const { pubkey } = useKeycast();
+  const { pubkey } = useAuth();
   const { mutateAsync: publish } = useKeycastPublish();
   const queryClient = useQueryClient();
 
@@ -325,7 +325,7 @@ export function useUpdateMusicStatus() {
  * @returns Mutation to clear music status
  */
 export function useClearMusicStatus() {
-  const { pubkey } = useKeycast();
+  const { pubkey } = useAuth();
   const { mutateAsync: publish } = useKeycastPublish();
   const queryClient = useQueryClient();
 
@@ -361,7 +361,7 @@ export function useClearMusicStatus() {
  * });
  */
 export function useUpdateProfileSong() {
-  const { pubkey } = useKeycast();
+  const { pubkey } = useAuth();
   const { mutateAsync: publish } = useKeycastPublish();
   const queryClient = useQueryClient();
 
@@ -406,7 +406,7 @@ export function useUpdateProfileSong() {
  * @returns Mutation to clear profile song
  */
 export function useClearProfileSong() {
-  const { pubkey } = useKeycast();
+  const { pubkey } = useAuth();
   const { mutateAsync: publish } = useKeycastPublish();
   const queryClient = useQueryClient();
 

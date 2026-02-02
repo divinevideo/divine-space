@@ -2,7 +2,9 @@ import React, { useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { useKeycast } from '@/contexts/KeycastContext';
+import { useKeycastPublish } from '@/hooks/useKeycastPublish';
+import { useAuthor } from '@/hooks/useAuthor';
 import { useToast } from '@/hooks/useToast';
 import { Button } from '@/components/ui/button';
 import {
@@ -25,8 +27,17 @@ import { useUploadFile } from '@/hooks/useUploadFile';
 export const EditProfileForm: React.FC = () => {
   const queryClient = useQueryClient();
 
-  const { user, metadata } = useCurrentUser();
-  const { mutateAsync: publishEvent, isPending } = useNostrPublish();
+  // Support both Keycast and Nostrify login
+  const { user: nostrifyUser, metadata: nostrifyMetadata } = useCurrentUser();
+  const { isAuthenticated: keycastAuth, pubkey: keycastPubkey } = useKeycast();
+  const keycastAuthor = useAuthor(keycastPubkey ?? undefined);
+
+  // Use whichever login is available
+  const isAuthenticated = keycastAuth || !!nostrifyUser;
+  const pubkey = keycastPubkey ?? nostrifyUser?.pubkey;
+  const metadata = keycastAuth ? keycastAuthor.data?.metadata : nostrifyMetadata;
+
+  const { mutateAsync: publishEvent, isPending } = useKeycastPublish();
   const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
   const { toast } = useToast();
 
@@ -80,7 +91,7 @@ export const EditProfileForm: React.FC = () => {
   };
 
   const onSubmit = async (values: NostrMetadata) => {
-    if (!user) {
+    if (!isAuthenticated || !pubkey) {
       toast({
         title: 'Error',
         description: 'You must be logged in to update your profile',
@@ -108,7 +119,7 @@ export const EditProfileForm: React.FC = () => {
 
       // Invalidate queries to refresh the data
       queryClient.invalidateQueries({ queryKey: ['logins'] });
-      queryClient.invalidateQueries({ queryKey: ['author', user.pubkey] });
+      queryClient.invalidateQueries({ queryKey: ['author', pubkey] });
 
       toast({
         title: 'Success',

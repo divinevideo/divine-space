@@ -1,10 +1,10 @@
-import { useSeoMeta } from '@unhead/react';
+import { useSeoMeta, useHead } from '@unhead/react';
 import { useParams, Link } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { useDivineVideo, useDivineVideoStats } from '@/hooks/useDivineVideos';
 import { useVideoComments, useVideoReaction, useToggleVideoReaction, usePostComment, useRepostVideo } from '@/hooks/useDivineSocial';
 import { useDivineUserVideos } from '@/hooks/useDivineUser';
-import { useKeycast } from '@/contexts/KeycastContext';
+import { useAuth } from '@/hooks/useAuth';
 import { useAuthor } from '@/hooks/useAuthor';
 import { VideoCard, VideoCardSkeleton } from '@/components/VideoCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -39,14 +39,9 @@ function formatNumber(num: number): string {
 
 export default function Video() {
   const { id } = useParams<{ id: string }>();
-  const { isAuthenticated } = useKeycast();
+  const { isAuthenticated } = useAuth();
   const { toast } = useToast();
   const [commentText, setCommentText] = useState('');
-
-  useSeoMeta({
-    title: 'Video - DiVine Space',
-    description: 'Watch this video on DiVine Space.',
-  });
 
   const { data: video, isLoading: videoLoading, error: videoError } = useDivineVideo(id);
   const { data: stats } = useDivineVideoStats(id);
@@ -58,6 +53,47 @@ export default function Video() {
 
   const author = useAuthor(video?.pubkey);
   const { data: moreVideos } = useDivineUserVideos(video?.pubkey, { limit: 4 });
+
+  // Dynamic SEO meta tags for social embeds
+  const videoTitle = video?.title || 'Video';
+  const videoDescription = video?.content?.slice(0, 200) || 'Watch this video on DiVine Space';
+  const videoThumbnail = video?.thumbnail || 'https://divine.space/og-image.svg';
+  const videoUrl = `https://divine.space/video/${id}`;
+  const authorName = author.data?.metadata?.display_name || author.data?.metadata?.name || 'Creator';
+
+  useSeoMeta({
+    title: `${videoTitle} - DiVine Space`,
+    description: videoDescription,
+  });
+
+  // Open Graph and Twitter Card meta tags for video embeds
+  useHead({
+    meta: [
+      // Open Graph
+      { property: 'og:type', content: 'video.other' },
+      { property: 'og:url', content: videoUrl },
+      { property: 'og:title', content: videoTitle },
+      { property: 'og:description', content: videoDescription },
+      { property: 'og:image', content: videoThumbnail },
+      { property: 'og:image:width', content: '1280' },
+      { property: 'og:image:height', content: '720' },
+      { property: 'og:video', content: video?.video_url || '' },
+      { property: 'og:video:type', content: 'video/mp4' },
+      { property: 'og:site_name', content: 'DiVine Space' },
+      // Twitter Card
+      { name: 'twitter:card', content: 'player' },
+      { name: 'twitter:title', content: videoTitle },
+      { name: 'twitter:description', content: videoDescription },
+      { name: 'twitter:image', content: videoThumbnail },
+      { name: 'twitter:player', content: `https://divine.space/embed/${id}` },
+      { name: 'twitter:player:width', content: '480' },
+      { name: 'twitter:player:height', content: '854' },
+    ],
+    link: [
+      // oEmbed discovery
+      { rel: 'alternate', type: 'application/json+oembed', href: `https://relay.divine.video/api/oembed?url=${encodeURIComponent(videoUrl)}` },
+    ],
+  });
 
   if (videoLoading) {
     return (

@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
-import { useKeycast } from '@/contexts/KeycastContext';
+import { useAuth } from './useAuth';
 import { useKeycastPublish } from './useKeycastPublish';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -9,7 +9,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
  */
 export function useVideoReaction(videoId: string | undefined, videoAuthorPubkey: string | undefined) {
   const { nostr } = useNostr();
-  const { pubkey, isAuthenticated } = useKeycast();
+  const { pubkey, isAuthenticated } = useAuth();
 
   return useQuery({
     queryKey: ['divine', 'reaction', videoId, pubkey],
@@ -35,7 +35,7 @@ export function useVideoReaction(videoId: string | undefined, videoAuthorPubkey:
 export function useToggleVideoReaction() {
   const queryClient = useQueryClient();
   const { mutateAsync: publishEvent } = useKeycastPublish();
-  const { pubkey, isAuthenticated } = useKeycast();
+  const { pubkey, isAuthenticated } = useAuth();
 
   return useMutation({
     mutationFn: async ({ 
@@ -89,7 +89,7 @@ export function useToggleVideoReaction() {
  */
 export function useIsFollowing(targetPubkey: string | undefined) {
   const { nostr } = useNostr();
-  const { pubkey, isAuthenticated } = useKeycast();
+  const { pubkey, isAuthenticated } = useAuth();
 
   return useQuery({
     queryKey: ['divine', 'following', pubkey, targetPubkey],
@@ -121,7 +121,7 @@ export function useToggleFollow() {
   const queryClient = useQueryClient();
   const { nostr } = useNostr();
   const { mutateAsync: publishEvent } = useKeycastPublish();
-  const { pubkey, isAuthenticated } = useKeycast();
+  const { pubkey, isAuthenticated } = useAuth();
 
   return useMutation({
     mutationFn: async ({ 
@@ -187,7 +187,7 @@ export function useToggleFollow() {
 export function usePostComment() {
   const queryClient = useQueryClient();
   const { mutateAsync: publishEvent } = useKeycastPublish();
-  const { pubkey, isAuthenticated } = useKeycast();
+  const { pubkey, isAuthenticated } = useAuth();
 
   return useMutation({
     mutationFn: async ({ 
@@ -264,7 +264,7 @@ export function useVideoComments(videoId: string | undefined) {
 export function useRepostVideo() {
   const queryClient = useQueryClient();
   const { mutateAsync: publishEvent } = useKeycastPublish();
-  const { pubkey, isAuthenticated } = useKeycast();
+  const { pubkey, isAuthenticated } = useAuth();
 
   return useMutation({
     mutationFn: async ({ 

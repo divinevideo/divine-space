@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { useDivineUserFollowing, useDivineUserFollowers } from '@/hooks/useDivineUser';
 import { useKeycast } from '@/contexts/KeycastContext';
+import { useLoggedInAccounts } from '@/hooks/useLoggedInAccounts';
 import { useAuthor } from '@/hooks/useAuthor';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -10,10 +11,15 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Users, UserPlus, Heart, Sparkles } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
-import { KeycastLoginArea } from '@/components/auth/KeycastLoginArea';
+import { LoginArea } from '@/components/auth/LoginArea';
 
 export default function Friends() {
-  const { pubkey, isAuthenticated } = useKeycast();
+  const { pubkey: keycastPubkey, isAuthenticated: keycastAuth } = useKeycast();
+  const { currentUser } = useLoggedInAccounts();
+
+  // Support both Keycast and standard Nostr login
+  const isAuthenticated = keycastAuth || !!currentUser;
+  const pubkey = keycastPubkey ?? currentUser?.pubkey;
 
   useSeoMeta({
     title: 'Friends - DiVine Space',
@@ -31,7 +37,7 @@ export default function Friends() {
               <p className="text-muted-foreground mb-6">
                 Log in to see your friends, followers, and who you're following.
               </p>
-              <KeycastLoginArea className="justify-center" />
+              <LoginArea className="justify-center" />
             </CardContent>
           </Card>
         </div>
@@ -65,7 +71,7 @@ function FriendsContent({ pubkey }: { pubkey: string }) {
             <TabsTrigger value="following" className="gap-2">
               <UserPlus className="h-4 w-4" />
               Following
-              {following && (
+              {following?.pubkeys && (
                 <span className="ml-1 px-1.5 py-0.5 rounded-full bg-primary/20 text-xs">
                   {following.pubkeys.length}
                 </span>
@@ -74,7 +80,7 @@ function FriendsContent({ pubkey }: { pubkey: string }) {
             <TabsTrigger value="followers" className="gap-2">
               <Heart className="h-4 w-4" />
               Followers
-              {followers && (
+              {followers?.pubkeys && (
                 <span className="ml-1 px-1.5 py-0.5 rounded-full bg-primary/20 text-xs">
                   {followers.pubkeys.length}
                 </span>
@@ -90,7 +96,7 @@ function FriendsContent({ pubkey }: { pubkey: string }) {
                   <FriendCardSkeleton key={i} />
                 ))}
               </div>
-            ) : following && following.pubkeys.length > 0 ? (
+            ) : following?.pubkeys && following.pubkeys.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {following.pubkeys.map((pk) => (
                   <FriendCard key={pk} pubkey={pk} />
@@ -124,7 +130,7 @@ function FriendsContent({ pubkey }: { pubkey: string }) {
                   <FriendCardSkeleton key={i} />
                 ))}
               </div>
-            ) : followers && followers.pubkeys.length > 0 ? (
+            ) : followers?.pubkeys && followers.pubkeys.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {followers.pubkeys.map((pk) => (
                   <FriendCard key={pk} pubkey={pk} />

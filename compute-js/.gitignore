@@ -1,0 +1,7 @@
+node_modules/
+bin/
+pkg/
+*.wasm
+static-publisher/kvstore.json
+static-publisher/kv-store-content/
+__input_bundled.js.map

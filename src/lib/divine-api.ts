@@ -20,6 +20,8 @@ export interface VideoListItem {
   reactions: number;
   comments: number;
   reposts: number;
+  loops?: number;
+  views?: number;
   engagement_score: number;
   trending_score: number;
   author_name?: string;
@@ -138,6 +140,8 @@ export interface PlatformStats {
   total_events: number;
   total_videos: number;
   vine_videos: number;
+  total_creators?: number;
+  total_loops?: number;
 }
 
 export type VideoSort = 'recent' | 'trending' | 'popular' | 'loops';

@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
-import { useKeycast } from '@/contexts/KeycastContext';
+import { useAuth } from './useAuth';
 import { useKeycastPublish } from './useKeycastPublish';
 
 // Kind for DiVine Space profile customization
@@ -708,7 +708,7 @@ export function useMySpaceProfile(pubkey: string | undefined) {
  * Update the current user's MySpace profile
  */
 export function useUpdateMySpaceProfile() {
-  const { pubkey } = useKeycast();
+  const { pubkey } = useAuth();
   const { mutateAsync: publish } = useKeycastPublish();
   const queryClient = useQueryClient();
 
@@ -740,7 +740,7 @@ export function useUpdateMySpaceProfile() {
  * Add a friend to the Top 8
  */
 export function useAddTopFriend() {
-  const { pubkey } = useKeycast();
+  const { pubkey } = useAuth();
   const { data: profile } = useMySpaceProfile(pubkey);
   const { mutateAsync: updateProfile } = useUpdateMySpaceProfile();
 
@@ -779,7 +779,7 @@ export function useAddTopFriend() {
  * Remove a friend from the Top 8
  */
 export function useRemoveTopFriend() {
-  const { pubkey } = useKeycast();
+  const { pubkey } = useAuth();
   const { data: profile } = useMySpaceProfile(pubkey);
   const { mutateAsync: updateProfile } = useUpdateMySpaceProfile();
 
@@ -799,7 +799,7 @@ export function useRemoveTopFriend() {
  * Reorder Top 8 friends
  */
 export function useReorderTopFriends() {
-  const { pubkey } = useKeycast();
+  const { pubkey } = useAuth();
   const { data: profile } = useMySpaceProfile(pubkey);
   const { mutateAsync: updateProfile } = useUpdateMySpaceProfile();
 

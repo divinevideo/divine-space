@@ -2,7 +2,7 @@
 // It is important that all functionality in this file is preserved, and should only be modified if explicitly requested.
 
 import React, { useRef, useState, useEffect } from 'react';
-import { Upload, AlertTriangle, ChevronDown } from 'lucide-react';
+import { Upload, AlertTriangle, ChevronDown, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useLoginActions } from '@/hooks/useLoginActions';
+import { useKeycast } from '@/contexts/KeycastContext';
 import { DialogTitle } from '@radix-ui/react-dialog';
 
 interface LoginDialogProps {
@@ -36,9 +37,11 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin }) =
     bunker?: string;
     file?: string;
     extension?: string;
+    keycast?: string;
   }>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const login = useLoginActions();
+  const { login: keycastLogin } = useKeycast();
 
   // Reset all state when dialog opens/closes
   useEffect(() => {
@@ -56,6 +59,24 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin }) =
     }
   }, [isOpen]);
 
+  const handleKeycastLogin = async () => {
+    setIsLoading(true);
+    setErrors(prev => ({ ...prev, keycast: undefined }));
+
+    try {
+      await keycastLogin();
+      // Note: Keycast redirects to OAuth, so onLogin/onClose won't be called here
+    } catch (e: unknown) {
+      const error = e as Error;
+      console.error('Keycast login failed:', error);
+      setErrors(prev => ({
+        ...prev,
+        keycast: error instanceof Error ? error.message : 'Login failed'
+      }));
+      setIsLoading(false);
+    }
+  };
+
   const handleExtensionLogin = async () => {
     setIsLoading(true);
     setErrors(prev => ({ ...prev, extension: undefined }));
@@ -69,8 +90,6 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin }) =
       onClose();
     } catch (e: unknown) {
       const error = e as Error;
-      console.error('Bunker login failed:', error);
-      console.error('Nsec login failed:', error);
       console.error('Extension login failed:', error);
       setErrors(prev => ({
         ...prev,
@@ -173,112 +192,135 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin }) =
   const hasExtension = 'nostr' in window;
   const [isMoreOptionsOpen, setIsMoreOptionsOpen] = useState(false);
 
-  const renderTabs = () => (
-    <Tabs defaultValue="key" className="w-full">
-      <TabsList className="grid w-full grid-cols-2 bg-muted/80 rounded-lg mb-4">
-        <TabsTrigger value="key" className="flex items-center gap-2">
-          <span>Secret Key</span>
-        </TabsTrigger>
-        <TabsTrigger value="bunker" className="flex items-center gap-2">
-          <span>Remote Signer</span>
-        </TabsTrigger>
-      </TabsList>
+  const renderOtherLoginMethods = () => (
+    <div className="space-y-4">
+      {/* Extension Login - if available */}
+      {hasExtension && (
+        <div className="space-y-2">
+          {errors.extension && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>{errors.extension}</AlertDescription>
+            </Alert>
+          )}
+          <Button
+            variant="outline"
+            className="w-full h-10"
+            onClick={handleExtensionLogin}
+            disabled={isLoading}
+          >
+            {isLoading ? 'Logging in...' : 'Log in with Extension'}
+          </Button>
+        </div>
+      )}
 
-      <TabsContent value='key' className='space-y-4'>
-        <form onSubmit={(e) => {
-          e.preventDefault();
-          handleKeyLogin();
-        }} className='space-y-4'>
-          <div className='space-y-2'>
-            <Input
-              id='nsec'
-              type="password"
-              value={nsec}
-              onChange={(e) => {
-                setNsec(e.target.value);
-                if (errors.nsec) setErrors(prev => ({ ...prev, nsec: undefined }));
-              }}
-              className={`rounded-lg ${
-                errors.nsec ? 'border-red-500 focus-visible:ring-red-500' : ''
-              }`}
-              placeholder='nsec1...'
-              autoComplete="off"
-            />
-            {errors.nsec && (
-              <p className="text-sm text-red-500">{errors.nsec}</p>
+      {/* Tabs for nsec and bunker */}
+      <Tabs defaultValue="key" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 bg-muted/80 rounded-lg mb-4">
+          <TabsTrigger value="key" className="flex items-center gap-2">
+            <span>Secret Key</span>
+          </TabsTrigger>
+          <TabsTrigger value="bunker" className="flex items-center gap-2">
+            <span>Remote Signer</span>
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value='key' className='space-y-4'>
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            handleKeyLogin();
+          }} className='space-y-4'>
+            <div className='space-y-2'>
+              <Input
+                id='nsec'
+                type="password"
+                value={nsec}
+                onChange={(e) => {
+                  setNsec(e.target.value);
+                  if (errors.nsec) setErrors(prev => ({ ...prev, nsec: undefined }));
+                }}
+                className={`rounded-lg ${
+                  errors.nsec ? 'border-red-500 focus-visible:ring-red-500' : ''
+                }`}
+                placeholder='nsec1...'
+                autoComplete="off"
+              />
+              {errors.nsec && (
+                <p className="text-sm text-red-500">{errors.nsec}</p>
+              )}
+            </div>
+
+            <div className="flex space-x-2">
+              <Button
+                type="submit"
+                size="lg"
+                disabled={isLoading || !nsec.trim()}
+                className="flex-1"
+              >
+                {isLoading ? 'Verifying...' : 'Log in'}
+              </Button>
+
+              <input
+                type="file"
+                accept=".txt"
+                className="hidden"
+                ref={fileInputRef}
+                onChange={handleFileUpload}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isLoading || isFileLoading}
+                className="px-3"
+              >
+                <Upload className="w-4 h-4" />
+              </Button>
+            </div>
+
+            {errors.file && (
+              <p className="text-sm text-red-500 text-center">{errors.file}</p>
             )}
-          </div>
+          </form>
+        </TabsContent>
 
-          <div className="flex space-x-2">
+        <TabsContent value='bunker' className='space-y-4'>
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            handleBunkerLogin();
+          }} className='space-y-4'>
+            <div className='space-y-2'>
+              <Input
+                id='bunkerUri'
+                value={bunkerUri}
+                onChange={(e) => {
+                  setBunkerUri(e.target.value);
+                  if (errors.bunker) setErrors(prev => ({ ...prev, bunker: undefined }));
+                }}
+                className={`rounded-lg border-gray-300 dark:border-gray-700 focus-visible:ring-primary ${
+                  errors.bunker ? 'border-red-500' : ''
+                }`}
+                placeholder='bunker://'
+                autoComplete="off"
+              />
+              {errors.bunker && (
+                <p className="text-sm text-red-500">{errors.bunker}</p>
+              )}
+            </div>
+
             <Button
               type="submit"
               size="lg"
-              disabled={isLoading || !nsec.trim()}
-              className="flex-1"
+              className='w-full'
+              disabled={isLoading || !bunkerUri.trim()}
             >
-              {isLoading ? 'Verifying...' : 'Log in'}
+              {isLoading ? 'Connecting...' : 'Log in'}
             </Button>
-
-            <input
-              type="file"
-              accept=".txt"
-              className="hidden"
-              ref={fileInputRef}
-              onChange={handleFileUpload}
-            />
-            <Button
-              type="button"
-              variant="outline"
-              size="lg"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isLoading || isFileLoading}
-              className="px-3"
-            >
-              <Upload className="w-4 h-4" />
-            </Button>
-          </div>
-
-          {errors.file && (
-            <p className="text-sm text-red-500 text-center">{errors.file}</p>
-          )}
-        </form>
-      </TabsContent>
-
-      <TabsContent value='bunker' className='space-y-4'>
-        <form onSubmit={(e) => {
-          e.preventDefault();
-          handleBunkerLogin();
-        }} className='space-y-4'>
-          <div className='space-y-2'>
-            <Input
-              id='bunkerUri'
-              value={bunkerUri}
-              onChange={(e) => {
-                setBunkerUri(e.target.value);
-                if (errors.bunker) setErrors(prev => ({ ...prev, bunker: undefined }));
-              }}
-              className={`rounded-lg border-gray-300 dark:border-gray-700 focus-visible:ring-primary ${
-                errors.bunker ? 'border-red-500' : ''
-              }`}
-              placeholder='bunker://'
-              autoComplete="off"
-            />
-            {errors.bunker && (
-              <p className="text-sm text-red-500">{errors.bunker}</p>
-            )}
-          </div>
-
-          <Button
-            type="submit"
-            size="lg"
-            className='w-full'
-            disabled={isLoading || !bunkerUri.trim()}
-          >
-            {isLoading ? 'Connecting...' : 'Log in'}
-          </Button>
-        </form>
-      </TabsContent>
-    </Tabs>
+          </form>
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 
   return (
@@ -295,42 +337,37 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin }) =
         </div>
 
         <div className='px-6 pb-6 space-y-4 overflow-y-auto'>
-          {/* Extension Login Button - shown if extension is available */}
-          {hasExtension && (
-            <div className="space-y-4">
-              {errors.extension && (
-                <Alert variant="destructive">
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertDescription>{errors.extension}</AlertDescription>
-                </Alert>
-              )}
-              <Button
-                className="w-full h-12 px-9"
-                onClick={handleExtensionLogin}
-                disabled={isLoading}
-              >
-                {isLoading ? 'Logging in...' : 'Log in with Extension'}
-              </Button>
-            </div>
-          )}
+          {/* Keycast Login - Primary */}
+          <div className="space-y-4">
+            {errors.keycast && (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>{errors.keycast}</AlertDescription>
+              </Alert>
+            )}
+            <Button
+              className="w-full h-12 px-9 gap-2"
+              onClick={handleKeycastLogin}
+              disabled={isLoading}
+            >
+              <Sparkles className="h-4 w-4" />
+              {isLoading ? 'Signing in...' : 'Sign in with DiVine'}
+            </Button>
+          </div>
 
-          {/* Tabs - wrapped in collapsible if extension is available, otherwise shown directly */}
-          {hasExtension ? (
-            <Collapsible className="space-y-4" open={isMoreOptionsOpen} onOpenChange={setIsMoreOptionsOpen}>
-              <CollapsibleTrigger asChild>
-                <button className="w-full flex items-center justify-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
-                  <span>More Options</span>
-                  <ChevronDown className={`w-4 h-4 transition-transform ${isMoreOptionsOpen ? 'rotate-180' : ''}`} />
-                </button>
-              </CollapsibleTrigger>
+          {/* Other login methods in collapsible */}
+          <Collapsible className="space-y-4" open={isMoreOptionsOpen} onOpenChange={setIsMoreOptionsOpen}>
+            <CollapsibleTrigger asChild>
+              <button className="w-full flex items-center justify-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
+                <span>More Options</span>
+                <ChevronDown className={`w-4 h-4 transition-transform ${isMoreOptionsOpen ? 'rotate-180' : ''}`} />
+              </button>
+            </CollapsibleTrigger>
 
-              <CollapsibleContent>
-                {renderTabs()}
-              </CollapsibleContent>
-            </Collapsible>
-          ) : (
-            renderTabs()
-          )}
+            <CollapsibleContent>
+              {renderOtherLoginMethods()}
+            </CollapsibleContent>
+          </Collapsible>
         </div>
       </DialogContent>
     </Dialog>

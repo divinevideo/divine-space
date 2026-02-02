@@ -1,9 +1,8 @@
 import { Link } from 'react-router-dom';
-import { Heart, MessageCircle, Repeat2, Play, Eye } from 'lucide-react';
+import { Heart, MessageCircle, Repeat2, Play, Eye, RefreshCw } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { formatDistanceToNow } from 'date-fns';
 import { nip19 } from 'nostr-tools';
 import type { VideoListItem } from '@/lib/divine-api';
 
@@ -26,21 +25,9 @@ function formatCount(count: number | undefined | null): string {
 
 export function VideoCard({ video, className, showAuthor = true }: VideoCardProps) {
   const npub = nip19.npubEncode(video.pubkey);
-  
-  // Handle created_at as either Unix timestamp (number/string) or ISO date string
-  const createdAt = (() => {
-    const value = video.created_at;
-    // If it's a number or numeric string, treat as Unix timestamp
-    const numValue = typeof value === 'number' ? value : Number(value);
-    if (!isNaN(numValue) && numValue > 0) {
-      // Unix timestamps are in seconds, JS Date expects milliseconds
-      return new Date(numValue < 1e12 ? numValue * 1000 : numValue);
-    }
-    // Otherwise try to parse as ISO date string
-    return new Date(value);
-  })();
-  
-  const timeAgo = formatDistanceToNow(createdAt, { addSuffix: true });
+
+  // Get loop/view count - prefer loops, fallback to views or 0
+  const loopCount = video.loops ?? video.views ?? 0;
 
   return (
     <Card className={cn(
@@ -116,9 +103,12 @@ export function VideoCard({ video, className, showAuthor = true }: VideoCardProp
           </Link>
         )}
 
-        <p className="text-xs text-muted-foreground">
-          {timeAgo}
-        </p>
+        {loopCount > 0 && (
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            <RefreshCw className="h-3 w-3" />
+            <span>{formatCount(loopCount)} loops</span>
+          </div>
+        )}
       </div>
     </Card>
   );

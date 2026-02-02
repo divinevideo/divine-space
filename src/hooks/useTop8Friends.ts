@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
-import { useNostrPublish } from './useNostrPublish';
+import { useKeycastPublish } from './useKeycastPublish';
 import {
   parseTop8FromKind30000,
   parseTop8FromKind16793,
@@ -61,7 +61,7 @@ export const TOP8_D_TAG = 'top8';
 export function useTop8Friends(pubkey: string | undefined) {
   const { nostr } = useNostr();
   const queryClient = useQueryClient();
-  const { mutateAsync: publish } = useNostrPublish();
+  const { mutateAsync: publish } = useKeycastPublish();
 
   const query = useQuery({
     queryKey: ['top8', pubkey],

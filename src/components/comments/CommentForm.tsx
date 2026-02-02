@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useAuth } from '@/hooks/useAuth';
 import { usePostComment } from '@/hooks/usePostComment';
 import { LoginArea } from '@/components/auth/LoginArea';
 import { NostrEvent } from '@nostrify/nostrify';
@@ -19,18 +19,18 @@ interface CommentFormProps {
 export function CommentForm({
   root,
   reply,
-  onSuccess, 
+  onSuccess,
   placeholder = "Write a comment...",
-  compact = false 
+  compact = false
 }: CommentFormProps) {
   const [content, setContent] = useState('');
-  const { user } = useCurrentUser();
+  const { isAuthenticated } = useAuth();
   const { mutate: postComment, isPending } = usePostComment();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!content.trim() || !user) return;
+
+    if (!content.trim() || !isAuthenticated) return;
 
     postComment(
       { content: content.trim(), root, reply },
@@ -43,7 +43,7 @@ export function CommentForm({
     );
   };
 
-  if (!user) {
+  if (!isAuthenticated) {
     return (
       <Card className={compact ? "border-dashed" : ""}>
         <CardContent className={compact ? "p-4" : "p-6"}>

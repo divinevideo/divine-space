@@ -6,8 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useAppContext } from '@/hooks/useAppContext';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { useAuth } from '@/hooks/useAuth';
+import { useKeycastPublish } from '@/hooks/useKeycastPublish';
 import { useToast } from '@/hooks/useToast';
 
 interface Relay {
@@ -18,8 +18,8 @@ interface Relay {
 
 export function RelayListManager() {
   const { config, updateConfig } = useAppContext();
-  const { user } = useCurrentUser();
-  const { mutate: publishEvent } = useNostrPublish();
+  const { isAuthenticated } = useAuth();
+  const { mutate: publishEvent } = useKeycastPublish();
   const { toast } = useToast();
 
   const [relays, setRelays] = useState<Relay[]>(config.relayMetadata.relays);
@@ -119,7 +119,7 @@ export function RelayListManager() {
     }));
 
     // Publish to Nostr if user is logged in
-    if (user) {
+    if (isAuthenticated) {
       publishNIP65RelayList(newRelays);
     }
   };
@@ -276,7 +276,7 @@ export function RelayListManager() {
         </Button>
       </div>
 
-      {!user && (
+      {!isAuthenticated && (
         <p className="text-xs text-muted-foreground">
           Log in to sync your relay list with Nostr
         </p>

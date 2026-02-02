@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
-import { useKeycast } from '@/contexts/KeycastContext';
+import { useAuth } from './useAuth';
 import { useKeycastPublish } from './useKeycastPublish';
 import {
   parseLinksFromKind30003,
@@ -46,7 +46,7 @@ export type { ProfileLink } from '@/lib/parseLinks';
 export function useProfileLinks(pubkey: string | undefined) {
   const { nostr } = useNostr();
   const queryClient = useQueryClient();
-  const { pubkey: currentUserPubkey } = useKeycast();
+  const { pubkey: currentUserPubkey } = useAuth();
   const { mutateAsync: publish, isPending: isPublishing } = useKeycastPublish();
 
   const query = useQuery({
@@ -150,6 +150,6 @@ export function useProfileLinks(pubkey: string | undefined) {
  * Convenience wrapper that uses the current user's pubkey.
  */
 export function useCurrentUserLinks() {
-  const { pubkey } = useKeycast();
+  const { pubkey } = useAuth();
   return useProfileLinks(pubkey ?? undefined);
 }

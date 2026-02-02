@@ -7,7 +7,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
-import { useKeycast } from '@/contexts/KeycastContext';
+import { useAuth } from './useAuth';
 import { useKeycastPublish } from './useKeycastPublish';
 import { parseSiteConfig, siteConfigToTags, siteConfigToContent } from '@/lib/parseSiteConfig';
 import type { SiteConfig, SiteConfigInput } from '@/types/site';
@@ -57,7 +57,7 @@ export function useSiteConfig(pubkey: string | undefined) {
  * @returns Mutation for updating site config
  */
 export function useUpdateSiteConfig() {
-  const { pubkey } = useKeycast();
+  const { pubkey } = useAuth();
   const { mutateAsync: publish } = useKeycastPublish();
   const queryClient = useQueryClient();
 
@@ -123,7 +123,8 @@ export function useUpdateSiteConfig() {
  * @returns Mutation for updating the theme
  */
 export function useSetSiteTheme() {
-  const { data: currentConfig } = useSiteConfig(useKeycast().pubkey ?? undefined);
+  const { pubkey } = useAuth();
+  const { data: currentConfig } = useSiteConfig(pubkey ?? undefined);
   const { mutateAsync: updateConfig } = useUpdateSiteConfig();
 
   return useMutation({
@@ -142,7 +143,8 @@ export function useSetSiteTheme() {
  * @returns Mutation for updating widgets
  */
 export function useUpdateSiteWidgets() {
-  const { data: currentConfig } = useSiteConfig(useKeycast().pubkey ?? undefined);
+  const { pubkey } = useAuth();
+  const { data: currentConfig } = useSiteConfig(pubkey ?? undefined);
   const { mutateAsync: updateConfig } = useUpdateSiteConfig();
 
   return useMutation({
@@ -161,7 +163,8 @@ export function useUpdateSiteWidgets() {
  * @returns Mutation for updating customization
  */
 export function useUpdateSiteCustomization() {
-  const { data: currentConfig } = useSiteConfig(useKeycast().pubkey ?? undefined);
+  const { pubkey } = useAuth();
+  const { data: currentConfig } = useSiteConfig(pubkey ?? undefined);
   const { mutateAsync: updateConfig } = useUpdateSiteConfig();
 
   return useMutation({
@@ -180,7 +183,8 @@ export function useUpdateSiteCustomization() {
  * @returns Mutation for updating includes
  */
 export function useUpdateSiteIncludes() {
-  const { data: currentConfig } = useSiteConfig(useKeycast().pubkey ?? undefined);
+  const { pubkey } = useAuth();
+  const { data: currentConfig } = useSiteConfig(pubkey ?? undefined);
   const { mutateAsync: updateConfig } = useUpdateSiteConfig();
 
   return useMutation({

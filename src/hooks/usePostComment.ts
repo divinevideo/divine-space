@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { useKeycastPublish } from '@/hooks/useKeycastPublish';
 import { NKinds, type NostrEvent } from '@nostrify/nostrify';
 
 interface PostCommentParams {
@@ -10,7 +10,7 @@ interface PostCommentParams {
 
 /** Post a NIP-22 (kind 1111) comment on an event. */
 export function usePostComment() {
-  const { mutateAsync: publishEvent } = useNostrPublish();
+  const { mutateAsync: publishEvent } = useKeycastPublish();
   const queryClient = useQueryClient();
 
   return useMutation({

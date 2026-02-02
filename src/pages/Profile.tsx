@@ -1,9 +1,10 @@
-import { useSeoMeta } from '@unhead/react';
+import { useSeoMeta, useHead } from '@unhead/react';
+import { nip19 } from 'nostr-tools';
 import { Link } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { useDivineUser, useDivineUserVideosInfinite } from '@/hooks/useDivineUser';
 import { useIsFollowing, useToggleFollow } from '@/hooks/useDivineSocial';
-import { useKeycast } from '@/contexts/KeycastContext';
+import { useAuth } from '@/hooks/useAuth';
 import { useMySpaceProfile, getPresetStyleInfo } from '@/hooks/useMySpaceProfile';
 import { useUserPostsInfinite } from '@/hooks/useUserPosts';
 import { VideoCard, VideoCardSkeleton } from '@/components/VideoCard';
@@ -11,6 +12,8 @@ import { Top8Friends } from '@/components/Top8Friends';
 import { ProfileMusicPlayer } from '@/components/ProfileMusicPlayer';
 import { NoteContent } from '@/components/NoteContent';
 import { MoodWidget, StatusWidget, QuoteWidget, ProfileBlings, PresetBadge, ClaimProfileBanner, MusicSuggestion, ThemedDivider, VisitorMessage, InterestsCloud, BlinkieBar } from '@/components/ProfileWidgets';
+import { ComposePost } from '@/components/ComposePost';
+import { PostActions } from '@/components/PostActions';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -41,6 +44,10 @@ import NotFound from './NotFound';
 
 interface ProfileProps {
   pubkey: string;
+  /** Whether this profile is being viewed on its own subdomain */
+  isSubdomain?: boolean;
+  /** The subdomain name if on subdomain */
+  subdomain?: string;
 }
 
 function formatNumber(num: number | undefined): string {
@@ -50,8 +57,8 @@ function formatNumber(num: number | undefined): string {
   return num.toString();
 }
 
-export default function Profile({ pubkey }: ProfileProps) {
-  const { pubkey: currentUserPubkey, isAuthenticated } = useKeycast();
+export default function Profile({ pubkey, isSubdomain, subdomain }: ProfileProps) {
+  const { pubkey: currentUserPubkey, isAuthenticated } = useAuth();
   const { toast } = useToast();
   const isOwnProfile = currentUserPubkey === pubkey;
 
@@ -84,9 +91,42 @@ export default function Profile({ pubkey }: ProfileProps) {
     }
   }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
+  // Dynamic SEO meta tags for social embeds
+  const profileName = divineUser?.profile?.display_name || divineUser?.profile?.name || 'Profile';
+  const profileTitle = isSubdomain && subdomain
+    ? `${profileName} | ${subdomain}.divine.space`
+    : profileName;
+  const profileDescription = divineUser?.profile?.about || 'View this profile on DiVine Space';
+  const profileImage = divineUser?.profile?.picture || 'https://divine.space/og-image.svg';
+  const profileUrl = isSubdomain && subdomain
+    ? `https://${subdomain}.divine.space/`
+    : `https://divine.space/${nip19.npubEncode(pubkey)}`;
+
   useSeoMeta({
-    title: divineUser?.profile?.display_name || divineUser?.profile?.name || 'Profile',
-    description: divineUser?.profile?.about || 'View this profile on DiVine Space',
+    title: profileTitle,
+    description: profileDescription,
+  });
+
+  // Open Graph and Twitter Card meta tags for profile embeds
+  useHead({
+    meta: [
+      // Open Graph
+      { property: 'og:type', content: 'profile' },
+      { property: 'og:url', content: profileUrl },
+      { property: 'og:title', content: profileTitle },
+      { property: 'og:description', content: profileDescription },
+      { property: 'og:image', content: profileImage },
+      { property: 'og:site_name', content: 'DiVine Space' },
+      // Twitter Card
+      { name: 'twitter:card', content: 'summary' },
+      { name: 'twitter:title', content: profileTitle },
+      { name: 'twitter:description', content: profileDescription },
+      { name: 'twitter:image', content: profileImage },
+    ],
+    link: [
+      // oEmbed discovery
+      { rel: 'alternate', type: 'application/json+oembed', href: `https://relay.divine.video/api/oembed?url=${encodeURIComponent(profileUrl)}` },
+    ],
   });
 
   if (userLoading) {
@@ -239,12 +279,20 @@ export default function Profile({ pubkey }: ProfileProps) {
                   {profile.name && profile.display_name && (
                     <p className="text-muted-foreground">@{profile.name}</p>
                   )}
-                  {profile.nip05 && (
-                    <Badge variant="secondary" className="mt-2 gap-1">
-                      <Sparkles className="h-3 w-3" />
-                      {formatNip05(profile.nip05)}
-                    </Badge>
-                  )}
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {isSubdomain && subdomain && (
+                      <Badge variant="default" className="gap-1">
+                        <Globe className="h-3 w-3" />
+                        {subdomain}.divine.space
+                      </Badge>
+                    )}
+                    {profile.nip05 && (
+                      <Badge variant="secondary" className="gap-1">
+                        <Sparkles className="h-3 w-3" />
+                        {formatNip05(profile.nip05)}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
 
                 {/* Action Buttons */}
@@ -510,6 +558,14 @@ export default function Profile({ pubkey }: ProfileProps) {
               </TabsContent>
 
               <TabsContent value="posts">
+                {/* Compose post form for own profile */}
+                {isOwnProfile && (
+                  <ComposePost
+                    className="mb-6"
+                    placeholder="Post something on your wall..."
+                  />
+                )}
+
                 {postsLoading ? (
                   <div className="space-y-4">
                     {Array.from({ length: 3 }).map((_, i) => (
@@ -534,8 +590,11 @@ export default function Profile({ pubkey }: ProfileProps) {
                             <div className="whitespace-pre-wrap break-words text-sm">
                               <NoteContent event={post} />
                             </div>
-                            <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
-                              <time dateTime={new Date(post.created_at * 1000).toISOString()}>
+                            <div className="flex items-center justify-between mt-3">
+                              <time
+                                dateTime={new Date(post.created_at * 1000).toISOString()}
+                                className="text-xs text-muted-foreground"
+                              >
                                 {new Date(post.created_at * 1000).toLocaleDateString(undefined, {
                                   year: 'numeric',
                                   month: 'short',
@@ -544,6 +603,7 @@ export default function Profile({ pubkey }: ProfileProps) {
                                   minute: '2-digit'
                                 })}
                               </time>
+                              <PostActions post={post} compact />
                             </div>
                           </CardContent>
                         </Card>

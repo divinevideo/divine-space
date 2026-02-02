@@ -2,15 +2,16 @@ import { useState, useEffect } from 'react';
 import { useSeoMeta } from '@unhead/react';
 import { Layout } from '@/components/Layout';
 import { useKeycast } from '@/contexts/KeycastContext';
-import { 
-  useMySpaceProfile, 
-  useUpdateMySpaceProfile, 
+import { useLoggedInAccounts } from '@/hooks/useLoggedInAccounts';
+import {
+  useMySpaceProfile,
+  useUpdateMySpaceProfile,
   useAddTopFriend,
   useRemoveTopFriend,
   useReorderTopFriends,
   MYSPACE_THEMES,
   type MySpaceProfileData,
-  type ThemeId 
+  type ThemeId
 } from '@/hooks/useMySpaceProfile';
 import { useDivineUserFollowing } from '@/hooks/useDivineUser';
 import { useAuthor } from '@/hooks/useAuthor';
@@ -43,13 +44,18 @@ import {
   Upload,
   Search,
   ExternalLink,
-  Play
+  Play,
+  Globe,
+  CheckCircle,
+  AlertCircle,
+  Copy
 } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
 import { useUploadFile } from '@/hooks/useUploadFile';
 import { cn } from '@/lib/utils';
 import { nip19 } from 'nostr-tools';
-import { KeycastLoginArea } from '@/components/auth/KeycastLoginArea';
+import { LoginArea } from '@/components/auth/LoginArea';
+import { useRegisterName, useLookupPubkey, useCheckNameAvailability, validateName } from '@/hooks/useDivineSpaceName';
 import {
   Dialog,
   DialogContent,
@@ -59,8 +65,13 @@ import {
 } from '@/components/ui/dialog';
 
 export default function MySpaceSettings() {
-  const { pubkey, isAuthenticated } = useKeycast();
+  const { pubkey: keycastPubkey, isAuthenticated: keycastAuth } = useKeycast();
+  const { currentUser } = useLoggedInAccounts();
   const { toast } = useToast();
+
+  // Support both Keycast and standard Nostr login
+  const isAuthenticated = keycastAuth || !!currentUser;
+  const pubkey = keycastPubkey ?? currentUser?.pubkey;
 
   useSeoMeta({
     title: 'Customize Profile - DiVine Space',
@@ -78,7 +89,7 @@ export default function MySpaceSettings() {
               <p className="text-muted-foreground mb-6">
                 Log in to customize your profile with themes, music, and more!
               </p>
-              <KeycastLoginArea className="justify-center" />
+              <LoginArea className="justify-center" />
             </CardContent>
           </Card>
         </div>
@@ -214,6 +225,10 @@ function MySpaceSettingsContent({ pubkey }: { pubkey: string }) {
             <TabsTrigger value="mood" className="gap-2">
               <Smile className="h-4 w-4" />
               Mood & Status
+            </TabsTrigger>
+            <TabsTrigger value="domain" className="gap-2">
+              <Globe className="h-4 w-4" />
+              Domain
             </TabsTrigger>
           </TabsList>
 
@@ -366,6 +381,11 @@ function MySpaceSettingsContent({ pubkey }: { pubkey: string }) {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Domain Settings */}
+          <TabsContent value="domain">
+            <DomainSettingsTab pubkey={pubkey} />
           </TabsContent>
         </Tabs>
 
@@ -895,4 +915,265 @@ interface WavlakeTrack {
   artistName?: string;
   artworkUrl?: string;
   mediaUrl?: string;
+}
+
+// Domain Settings Tab Component
+function DomainSettingsTab({ pubkey }: { pubkey: string }) {
+  const { toast } = useToast();
+  const [name, setName] = useState('');
+  const [isValidating, setIsValidating] = useState(false);
+
+  // Check if user already has a registered name
+  const { data: existingName, isLoading: loadingExisting } = useLookupPubkey(pubkey);
+
+  // Check name availability as user types (debounced)
+  const [debouncedName, setDebouncedName] = useState('');
+  const { data: availability, isLoading: checkingAvailability } = useCheckNameAvailability(debouncedName);
+
+  // Register name mutation
+  const registerName = useRegisterName();
+
+  // Debounce name input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (name.length >= 3) {
+        setDebouncedName(name.toLowerCase());
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [name]);
+
+  // Validate name format
+  const validation = validateName(name);
+
+  // Determine availability status
+  const showAvailability = name.length >= 3 && debouncedName === name.toLowerCase();
+  const isAvailable = showAvailability && availability?.available;
+  const isUnavailable = showAvailability && availability && !availability.available;
+
+  const handleRegister = async () => {
+    if (!validation.valid) {
+      toast({
+        title: 'Invalid name',
+        description: validation.error,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const result = await registerName.mutateAsync({
+        name: name.toLowerCase(),
+        pubkey,
+      });
+
+      toast({
+        title: 'Name registered!',
+        description: `You now own ${result.subdomain}`,
+      });
+
+      // Clear the input
+      setName('');
+    } catch (error) {
+      toast({
+        title: 'Registration failed',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({ title: 'Copied to clipboard' });
+  };
+
+  if (loadingExisting) {
+    return (
+      <Card className="myspace-card">
+        <CardContent className="py-8">
+          <div className="flex items-center justify-center gap-2">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            Loading...
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // If user already has a name registered
+  if (existingName?.found && existingName.name) {
+    return (
+      <Card className="myspace-card">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Globe className="h-5 w-5 text-primary" />
+            Your Domain
+          </CardTitle>
+          <CardDescription>
+            Your divine.space subdomain and NIP-05 identifier
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
+            <div className="flex items-center gap-2 mb-3">
+              <CheckCircle className="h-5 w-5 text-green-500" />
+              <span className="font-medium">Domain Registered</span>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <Label className="text-xs text-muted-foreground">Your Profile URL</Label>
+                <div className="flex items-center gap-2 mt-1">
+                  <code className="flex-1 px-3 py-2 bg-background rounded border text-sm">
+                    https://{existingName.name}.divine.space
+                  </code>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => copyToClipboard(`https://${existingName.name}.divine.space`)}
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => window.open(`https://${existingName.name}.divine.space`, '_blank')}
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-xs text-muted-foreground">NIP-05 Identifier</Label>
+                <div className="flex items-center gap-2 mt-1">
+                  <code className="flex-1 px-3 py-2 bg-background rounded border text-sm">
+                    {existingName.name}@divine.space
+                  </code>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => copyToClipboard(`${existingName.name}@divine.space`)}
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Add this to your Nostr profile to verify your identity
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="text-sm text-muted-foreground">
+            <p>Share your profile URL with friends, or add the NIP-05 identifier to your Nostr profile settings to get a verified badge.</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Registration form for users without a name
+  return (
+    <Card className="myspace-card">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Globe className="h-5 w-5 text-primary" />
+          Claim Your Domain
+        </CardTitle>
+        <CardDescription>
+          Get your own subdomain and NIP-05 identifier at divine.space
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="p-4 rounded-lg bg-muted/50 space-y-2">
+          <p className="text-sm">By registering a name, you'll get:</p>
+          <ul className="text-sm text-muted-foreground space-y-1">
+            <li className="flex items-center gap-2">
+              <CheckCircle className="h-4 w-4 text-green-500" />
+              Your own profile URL: <span className="font-mono text-foreground">yourname.divine.space</span>
+            </li>
+            <li className="flex items-center gap-2">
+              <CheckCircle className="h-4 w-4 text-green-500" />
+              A NIP-05 identifier: <span className="font-mono text-foreground">yourname@divine.space</span>
+            </li>
+            <li className="flex items-center gap-2">
+              <CheckCircle className="h-4 w-4 text-green-500" />
+              Easy sharing with friends
+            </li>
+          </ul>
+        </div>
+
+        <div>
+          <Label htmlFor="name">Choose Your Name</Label>
+          <div className="flex gap-2 mt-1">
+            <div className="relative flex-1">
+              <Input
+                id="name"
+                value={name}
+                onChange={(e) => setName(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''))}
+                placeholder="yourname"
+                className={cn(
+                  "pr-10",
+                  isAvailable && "border-green-500 focus-visible:ring-green-500",
+                  isUnavailable && "border-destructive focus-visible:ring-destructive"
+                )}
+              />
+              {checkingAvailability && name.length >= 3 && (
+                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+              )}
+              {isAvailable && (
+                <CheckCircle className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
+              )}
+              {isUnavailable && (
+                <AlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-destructive" />
+              )}
+            </div>
+            <Button
+              onClick={handleRegister}
+              disabled={!isAvailable || registerName.isPending}
+            >
+              {registerName.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                'Claim'
+              )}
+            </Button>
+          </div>
+
+          <div className="mt-2 text-xs">
+            {!validation.valid && name.length > 0 && (
+              <p className="text-destructive">{validation.error}</p>
+            )}
+            {isAvailable && (
+              <p className="text-green-500">
+                {name}.divine.space is available!
+              </p>
+            )}
+            {isUnavailable && (
+              <p className="text-destructive">
+                This name is already taken
+              </p>
+            )}
+            {name.length === 0 && (
+              <p className="text-muted-foreground">
+                3-30 characters, letters, numbers, underscores, and hyphens only
+              </p>
+            )}
+          </div>
+        </div>
+
+        {name.length >= 3 && isAvailable && (
+          <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
+            <p className="text-sm font-medium mb-2">Preview:</p>
+            <div className="space-y-1 text-sm">
+              <p>Profile URL: <span className="font-mono">https://{name}.divine.space</span></p>
+              <p>NIP-05: <span className="font-mono">{name}@divine.space</span></p>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
 }

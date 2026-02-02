@@ -1,4 +1,4 @@
-import { useSeoMeta } from '@unhead/react';
+import { useSeoMeta, useHead } from '@unhead/react';
 import { Layout } from '@/components/Layout';
 import { VideoCard, VideoCardSkeleton } from '@/components/VideoCard';
 import { useDivineVideos } from '@/hooks/useDivineVideos';
@@ -27,6 +27,24 @@ export default function Index() {
   useSeoMeta({
     title: 'DiVine Space - Your MySpace for Videos',
     description: 'A nostalgic video social network powered by Nostr. Browse trending videos, connect with creators, and share your favorites.',
+  });
+
+  // Open Graph and Twitter Card meta tags for homepage
+  useHead({
+    meta: [
+      // Open Graph
+      { property: 'og:type', content: 'website' },
+      { property: 'og:url', content: 'https://divine.space/' },
+      { property: 'og:title', content: 'DiVine Space - Your MySpace for Videos' },
+      { property: 'og:description', content: 'A nostalgic video social network powered by Nostr. Browse trending videos, connect with creators, and share your favorites.' },
+      { property: 'og:image', content: 'https://divine.space/og-image.svg' },
+      { property: 'og:site_name', content: 'DiVine Space' },
+      // Twitter Card
+      { name: 'twitter:card', content: 'summary_large_image' },
+      { name: 'twitter:title', content: 'DiVine Space - Your MySpace for Videos' },
+      { name: 'twitter:description', content: 'A nostalgic video social network powered by Nostr. Browse trending videos, connect with creators, and share your favorites.' },
+      { name: 'twitter:image', content: 'https://divine.space/og-image.svg' },
+    ],
   });
 
   const { data: videos, isLoading: videosLoading } = useDivineVideos({ 
@@ -60,25 +78,20 @@ export default function Index() {
             </h1>
             
             <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
-              Your MySpace for videos. Rediscover the social web with decentralized video sharing on Nostr.
+              We heard you missed Vine and MySpace, so we decided to make a mashup of the two. Welcome to divine.space
             </p>
 
             {stats && (
               <div className="flex flex-wrap items-center justify-center gap-6 pt-4">
                 <div className="flex items-center gap-2">
                   <Video className="h-5 w-5 text-primary" />
-                  <span className="text-lg font-semibold">{formatNumber(stats.total_videos)}</span>
-                  <span className="text-muted-foreground">Videos</span>
+                  <span className="text-lg font-semibold">{formatNumber(stats.total_videos - stats.vine_videos)}</span>
+                  <span className="text-muted-foreground">New Videos</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Flame className="h-5 w-5 text-pink-500" />
                   <span className="text-lg font-semibold">{formatNumber(stats.vine_videos)}</span>
-                  <span className="text-muted-foreground">Vines</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Users className="h-5 w-5 text-cyan-500" />
-                  <span className="text-lg font-semibold">{formatNumber(stats.total_events)}</span>
-                  <span className="text-muted-foreground">Events</span>
+                  <span className="text-muted-foreground">Classic Vines</span>
                 </div>
               </div>
             )}

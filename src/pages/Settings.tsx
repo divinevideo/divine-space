@@ -2,13 +2,18 @@ import { useSeoMeta } from '@unhead/react';
 import { Layout } from '@/components/Layout';
 import { EditProfileForm } from '@/components/EditProfileForm';
 import { useKeycast } from '@/contexts/KeycastContext';
+import { useLoggedInAccounts } from '@/hooks/useLoggedInAccounts';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { User, Settings as SettingsIcon, Bell, Shield } from 'lucide-react';
-import { KeycastLoginArea } from '@/components/auth/KeycastLoginArea';
+import { LoginArea } from '@/components/auth/LoginArea';
 
 export default function Settings() {
-  const { isAuthenticated } = useKeycast();
+  const { isAuthenticated: keycastAuth } = useKeycast();
+  const { currentUser } = useLoggedInAccounts();
+
+  // Support both Keycast and standard Nostr login
+  const isAuthenticated = keycastAuth || !!currentUser;
 
   useSeoMeta({
     title: 'Settings - DiVine Space',
@@ -26,7 +31,7 @@ export default function Settings() {
               <p className="text-muted-foreground mb-6">
                 Log in to access your settings and customize your profile.
               </p>
-              <KeycastLoginArea className="justify-center" />
+              <LoginArea className="justify-center" />
             </CardContent>
           </Card>
         </div>

@@ -3,8 +3,9 @@ import { Link, useLocation } from 'react-router-dom';
 import { Home, Search, User, Users, Trophy, Video, Menu, X, Sparkles } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { KeycastLoginArea } from '@/components/auth/KeycastLoginArea';
+import { LoginArea } from '@/components/auth/LoginArea';
 import { useKeycast } from '@/contexts/KeycastContext';
+import { useLoggedInAccounts } from '@/hooks/useLoggedInAccounts';
 import { cn } from '@/lib/utils';
 import { nip19 } from 'nostr-tools';
 
@@ -15,7 +16,12 @@ interface LayoutProps {
 export function Layout({ children }: LayoutProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
-  const { isAuthenticated, pubkey } = useKeycast();
+  const { isAuthenticated: keycastAuth, pubkey: keycastPubkey } = useKeycast();
+  const { currentUser } = useLoggedInAccounts();
+
+  // Support both Keycast and standard Nostr login methods
+  const isAuthenticated = keycastAuth || !!currentUser;
+  const pubkey = keycastPubkey ?? currentUser?.pubkey;
 
   const navigation = [
     { name: 'Home', href: '/', icon: Home },
@@ -88,7 +94,7 @@ export function Layout({ children }: LayoutProps) {
 
             {/* Right side */}
             <div className="flex items-center gap-3">
-              <KeycastLoginArea className="hidden sm:flex" />
+              <LoginArea className="hidden sm:flex" />
               
               {/* Mobile menu button */}
               <Button
@@ -133,7 +139,7 @@ export function Layout({ children }: LayoutProps) {
                 );
               })}
               <div className="pt-4 border-t border-border/50">
-                <KeycastLoginArea className="w-full" />
+                <LoginArea className="w-full" />
               </div>
             </nav>
           </div>

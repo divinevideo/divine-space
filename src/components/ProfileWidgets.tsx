@@ -519,7 +519,7 @@ export function VisitorMessage({ className }: { className?: string }) {
 // Blinkie decoration bar
 interface BlinkieBarProps {
   pattern?: string;
-  colors?: string[];
+  colors?: readonly string[] | string[];
   className?: string;
 }
 
