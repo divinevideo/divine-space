@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace the fixed profile/customization split with a canonical draft/published hosted page system that powers a real studio in `divine.space` and a sidebar-bento public page on `username.divine.video`.
+**Goal:** Replace the fixed profile/customization split with a canonical draft/published hosted page system that powers a real studio in `divine.space` and a sidebar-bento public page on `username.divine.video`, with enough mixed-media and upcoming-events support to function like a real creator homepage.
 
-**Architecture:** Build on the existing `kind:30512` site-config path instead of inventing a second page model. Introduce a shared canonical page document with draft and published identifiers, render the published document through a dedicated public page renderer, and move owner editing into a first-class studio route that migrates legacy Divine profile/MySpace data into a starter draft. This plan intentionally excludes AI copilot behavior, guestbook/follow event kinds, and self-host export; it creates the foundation they will plug into.
+**Architecture:** Build on the existing `kind:30512` site-config path instead of inventing a second page model. Introduce a shared canonical page document with draft and published identifiers, render the published document through a dedicated public page renderer, and move owner editing into a first-class studio route that migrates legacy Divine profile/MySpace data into a starter draft. Include a first-class upcoming/events widget backed by `NIP-52` calendar events so the public page reads like a creator site, not only a social profile. This plan intentionally excludes AI copilot behavior, guestbook/follow event kinds, and self-host export; it creates the foundation they will plug into.
 
 **Tech Stack:** React 18, React Router 6, TanStack Query, Nostrify, TypeScript, Vitest, react-grid-layout, shadcn/ui
 
@@ -18,6 +18,8 @@ The approved spec spans multiple independent subsystems. This plan covers only t
 - draft/published `30512` document flow
 - public sidebar-bento rendering
 - owner studio and manual widget editing
+- mixed-media creator archive support through existing posts/media widgets
+- first-class upcoming/events support using `NIP-52`
 - migration from legacy profile/MySpace data
 
 Follow-on plans are still required for:
@@ -41,6 +43,8 @@ Follow-on plans are still required for:
   Canonical sidebar-bento defaults and layout helpers, extracted away from legacy `defaultLayout.ts`.
 - `src/hooks/usePageDocument.ts`
   Query/mutation hooks for draft page, published page, publish action, and starter-draft creation.
+- `src/hooks/useCalendarEvents.ts`
+  Read and validate `NIP-52` calendar events for creator upcoming/appearance rendering.
 - `src/components/page/PublicPageShell.tsx`
   Shared layout wrapper for the hosted sidebar-bento public page.
 - `src/components/page/PublicPageRenderer.tsx`
@@ -51,12 +55,18 @@ Follow-on plans are still required for:
   Draft preview renderer reused by the studio.
 - `src/pages/PageStudio.tsx`
   First-class owner studio route inside `divine.space`.
+- `src/components/widgets/EventsWidget.tsx`
+  Upcoming events widget backed by validated `NIP-52` calendar events.
 - `src/lib/pageMigration.test.ts`
   Tests for starter-draft generation and identifier behavior.
 - `src/hooks/usePageDocument.test.tsx`
   Tests for draft/published fetch and publish mutations.
+- `src/hooks/useCalendarEvents.test.tsx`
+  Tests for `NIP-52` querying, validation, and sorting.
 - `src/components/page/PublicPageRenderer.test.tsx`
   Tests for widget-backed public rendering and legacy fallback behavior.
+- `src/components/widgets/EventsWidget.test.tsx`
+  Tests for events widget rendering and empty states.
 - `src/pages/PageStudio.test.tsx`
   Tests for studio bootstrapping, preview, and publish controls.
 
@@ -78,6 +88,8 @@ Follow-on plans are still required for:
   Render canonical page/widget data for preview/public use.
 - `src/components/BentoGridEditor.tsx`
   Replace placeholder-only editing with real widget-backed preview tiles and stable draft onChange behavior.
+- `src/lib/widgetRegistry.ts`
+  Register the `events` widget and set appropriate default sizing/constraints.
 - `src/pages/Profile.tsx`
   Render the published hosted page when it exists; keep a legacy fallback only while migrating.
 - `src/pages/Settings.tsx`
@@ -133,6 +145,7 @@ export interface PageDocument {
   summary?: string;
   shell: { type: 'sidebar-bento' };
   widgets: Widget[];
+  contentMode?: 'profile' | 'creator-site';
   draftState?: { lastPublishedAt?: number };
 }
 
@@ -259,6 +272,7 @@ export function createStarterDraft(input: StarterDraftInput): PageDocument {
   return {
     identifier: getDraftPageIdentifier(),
     shell: { type: 'sidebar-bento' },
+    contentMode: 'creator-site',
     widgets: mergeLegacyDataIntoSidebarLayout(input),
   };
 }
@@ -348,7 +362,86 @@ git add src/hooks/usePageDocument.ts src/hooks/useSiteConfig.ts src/hooks/usePag
 git commit -m "feat: add draft and published hosted page hooks"
 ```
 
-### Task 5: Build the public sidebar-bento renderer
+### Task 5: Add an upcoming/events widget backed by `NIP-52`
+
+**Files:**
+- Create: `src/hooks/useCalendarEvents.ts`
+- Create: `src/components/widgets/EventsWidget.tsx`
+- Modify: `src/types/widgets.ts`
+- Modify: `src/lib/widgetRegistry.ts`
+- Modify: `src/components/BentoGrid.tsx`
+- Test: `src/hooks/useCalendarEvents.test.tsx`
+- Test: `src/components/widgets/EventsWidget.test.tsx`
+
+- [ ] **Step 1: Write the failing tests for `NIP-52` calendar querying and validation**
+
+```ts
+it('returns upcoming time-based and date-based calendar events for an author', async () => {
+  const { result } = renderHook(() => useCalendarEvents(pubkey), { wrapper });
+  await waitFor(() => expect(result.current.data).toHaveLength(2));
+});
+
+it('filters out malformed calendar events missing required NIP-52 tags', async () => {
+  const { result } = renderHook(() => useCalendarEvents(pubkey), { wrapper });
+  await waitFor(() => expect(result.current.data?.every(isValidCalendarEvent)).toBe(true));
+});
+```
+
+- [ ] **Step 2: Run the calendar tests and verify failure**
+
+Run: `npx vitest run src/hooks/useCalendarEvents.test.tsx`
+Expected: FAIL because no calendar hook or validator exists.
+
+- [ ] **Step 3: Implement `NIP-52` calendar querying with author filtering and validation**
+
+```ts
+export function useCalendarEvents(pubkey: string | undefined) {
+  return useQuery({
+    queryKey: ['calendar-events', pubkey],
+    queryFn: async () => {
+      const events = await nostr.query([{ kinds: [31922, 31923], authors: [pubkey], limit: 50 }]);
+      return events.filter(validateCalendarEvent).sort(sortUpcomingFirst);
+    },
+    enabled: !!pubkey,
+  });
+}
+```
+
+- [ ] **Step 4: Add an `events` widget type and render it through `BentoGrid`**
+
+```ts
+export type WidgetType = /* existing */ | 'events';
+
+events: {
+  type: 'events',
+  name: 'Upcoming Events',
+  icon: 'Calendar',
+  defaultSize: { w: 2, h: 2 },
+}
+```
+
+- [ ] **Step 5: Implement the widget and its tests**
+
+```tsx
+export function EventsWidget({ pubkey, widget, isEditing }: WidgetProps) {
+  const { data: events = [] } = useCalendarEvents(pubkey);
+  // render upcoming appearances/shows with empty/edit states
+}
+```
+
+- [ ] **Step 6: Re-run the events tests**
+
+Run: `npx vitest run src/hooks/useCalendarEvents.test.tsx src/components/widgets/EventsWidget.test.tsx src/components/BentoGrid.test.tsx`
+Expected: PASS for validated `NIP-52` queries, upcoming sorting, and widget rendering.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add src/hooks/useCalendarEvents.ts src/components/widgets/EventsWidget.tsx src/types/widgets.ts src/lib/widgetRegistry.ts src/components/BentoGrid.tsx src/hooks/useCalendarEvents.test.tsx src/components/widgets/EventsWidget.test.tsx
+git commit -m "feat: add upcoming events widget using NIP-52 calendar events"
+```
+
+### Task 6: Build the public sidebar-bento renderer
 
 **Files:**
 - Create: `src/components/page/PublicPageShell.tsx`
@@ -408,7 +501,7 @@ git add src/components/page/PublicPageShell.tsx src/components/page/PublicPageRe
 git commit -m "feat: render published hosted pages with sidebar bento shell"
 ```
 
-### Task 6: Route public profile traffic through the published page system
+### Task 7: Route public profile traffic through the published page system
 
 **Files:**
 - Modify: `src/pages/Profile.tsx`
@@ -461,7 +554,7 @@ git commit -m "feat: serve published hosted pages on profile routes"
 
 ## Chunk 3: Owner Studio and Manual Widget Editing
 
-### Task 7: Add a first-class page studio route with draft bootstrap and preview
+### Task 8: Add a first-class page studio route with draft bootstrap and preview
 
 **Files:**
 - Create: `src/components/page/PageStudioShell.tsx`
@@ -523,7 +616,7 @@ git add src/components/page/PageStudioShell.tsx src/components/page/PagePreview.
 git commit -m "feat: add hosted page studio route"
 ```
 
-### Task 8: Make `BentoGridEditor` a real manual page editor
+### Task 9: Make `BentoGridEditor` a real manual page editor
 
 **Files:**
 - Modify: `src/components/BentoGridEditor.tsx`
@@ -568,7 +661,7 @@ git add src/components/BentoGridEditor.tsx src/components/BentoGrid.tsx src/lib/
 git commit -m "feat: render live widget previews inside the page editor"
 ```
 
-### Task 9: Retire split edit flows in favor of the studio
+### Task 10: Retire split edit flows in favor of the studio
 
 **Files:**
 - Modify: `src/pages/Settings.tsx`
@@ -626,7 +719,9 @@ git commit -m "refactor: route page editing through the hosted page studio"
 npx vitest run \
   src/lib/pageMigration.test.ts \
   src/hooks/usePageDocument.test.tsx \
+  src/hooks/useCalendarEvents.test.tsx \
   src/components/page/PublicPageRenderer.test.tsx \
+  src/components/widgets/EventsWidget.test.tsx \
   src/components/BentoGrid.test.tsx \
   src/components/BentoGridEditor.test.tsx \
   src/pages/PageStudio.test.tsx

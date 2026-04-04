@@ -13,11 +13,14 @@ The product center is:
 - `username.divine.video` as the published public page
 - a draft-first bento page model that powers both manual widget editing and AI-assisted page creation
 
-The default public page shell should be a sidebar bento layout. Owners build with a curated widget system in `v1`, while a Lovable/Shakespeare-style AI copilot assembles and edits the same structured page model in drafts.
+The default public page shell should be a sidebar bento layout. Owners build with a curated widget system in `v1`, while a Lovable/Shakespeare-style AI copilot assembles and edits the same structured page model in drafts. The hosted page should read as a mixed-media creator site that can plausibly replace a lightweight Tumblr-style blog/portfolio, not only a social profile.
 
 ## Product Goals
 
 - Make hosted user pages a first-class product, not an afterthought of the video app
+- Support mixed-media creator publishing across video, text, and photo-oriented content
+- Let the public page function as a portfolio/blog/archive of past work
+- Give creators a first-class way to surface upcoming shows, appearances, releases, or events
 - Give users an obvious, central way to build and rearrange their page
 - Publish visitor-facing pages to `username.divine.video`
 - Keep editing safe with draft and publish separation
@@ -44,6 +47,7 @@ The product should align with existing Nostr site patterns instead of inventing 
 ### Relevant Nostr Standards
 
 - `NIP-23` long-form content for richer authored content
+- `NIP-52` calendar events for upcoming appearances, shows, and date/time-based creator events
 - `NIP-51` lists/bookmark sets/follow sets for links, curated lists, and friend-like constructs
 - `NIP-65` relay discovery for fetch/publish strategy
 - `NIP-94` file metadata for media/assets
@@ -74,6 +78,8 @@ This is the hosted published site visitors see.
 Responsibilities:
 
 - render the published page snapshot
+- present mixed-media archive and portfolio content clearly
+- surface upcoming creator events in a first-class way
 - expose social-lite interactions
 - present a stable, shareable public identity surface
 
@@ -95,9 +101,9 @@ Responsibilities:
 The default shell is `Sidebar Bento`.
 
 - Left rail: profile intro, links, music, follow/save/contact, Top Friends, compact social blocks
-- Right column: text, embeds, notes, featured videos/posts, guestbook, other content widgets
+- Right column: text, embeds, notes, featured videos/posts/photos, guestbook, events, and other content widgets
 
-This preserves strong profile identity while still feeling like a hosted personal site.
+This preserves strong profile identity while still feeling like a hosted personal site. The intended feel is “creator homepage with social primitives,” not just “profile page with extra cards.”
 
 ### Social Lite in `v1`
 
@@ -123,7 +129,9 @@ Core `v1` widgets:
 - embed
 - videos / featured media
 - posts / notes
+- gallery / photo media
 - music
+- events / upcoming
 - top friends
 - guestbook
 - follow/save/contact
@@ -142,6 +150,17 @@ Owners can:
 - predictable editing on web and mobile
 - easier migration from existing profile data
 - safe substrate for AI editing
+
+### Creator/Portfolio Bias
+
+The builder should bias toward creator use cases:
+
+- “send people here to see everything I make”
+- archive past work across multiple media types
+- highlight current projects
+- surface upcoming appearances or releases
+
+This means notes/posts and events cannot be treated as marginal widgets. They are core to the public page story.
 
 ## AI Copilot Model
 
@@ -205,6 +224,7 @@ Conceptually it contains:
 - site metadata: title, summary, image, routing/domain binding
 - shell settings: layout type, header/nav behavior, theme id
 - widgets: ordered/resizable blocks with type, size, position, visibility, config
+- content/archive settings for mixed-media presentation where needed
 - social settings: guestbook/contact/follow-save toggles
 - draft/publish metadata
 - AI revision metadata for draft history and patching
@@ -220,6 +240,8 @@ When a user first opens the page studio, generate a starter draft from existing 
 - music/theme/background data where useful
 - Top Friends / social data
 - featured videos/posts where available
+
+If the user later has NIP-52 events, those should slot naturally into the page model as first-class event widgets rather than bespoke Divine-only structures.
 
 The goal is “your current page, now editable,” not “start from nothing.”
 
