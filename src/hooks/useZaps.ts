@@ -192,21 +192,13 @@ export function useZaps(
         return;
       }
 
-      // Create zap request - use appropriate event format based on kind
-      // For addressable events (30000-39999), pass the object to get 'a' tag
-      // For all other events, pass the ID string to get 'e' tag
-      const event = (actualTarget.kind >= 30000 && actualTarget.kind < 40000)
-        ? actualTarget
-        : actualTarget.id;
-
       const zapAmount = amount * 1000; // convert to millisats
 
       const zapRequest = nip57.makeZapRequest({
-        profile: actualTarget.pubkey,
-        event: event,
+        event: actualTarget,
         amount: zapAmount,
         relays: config.relayMetadata.relays.map(r => r.url),
-        comment
+        comment,
       });
 
       // Sign the zap request (but don't publish to relays - only send to LNURL endpoint)

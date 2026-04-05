@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { NostrContext } from '@nostrify/react';
-import type { NostrEvent, NStore } from '@nostrify/nostrify';
+import { NPool, type NostrEvent, type NRelay } from '@nostrify/nostrify';
 import { useMoodStatus, useMusicStatus, useProfileSong, useUserStatus } from './useUserStatus';
 import { STATUS_KIND } from '@/lib/parseStatus';
 import type { ReactNode } from 'react';
@@ -32,22 +32,19 @@ function createWrapper(events: NostrEvent[] = []) {
     },
   });
 
-  const mockNostr: NStore = {
-    query: vi.fn().mockImplementation(async (filters) => {
-      // Filter events based on the query
-      return events.filter((event) => {
-        const filter = filters[0];
-        if (filter.kinds && !filter.kinds.includes(event.kind)) return false;
-        if (filter.authors && !filter.authors.includes(event.pubkey)) return false;
-        if (filter['#d']) {
-          const dTag = event.tags.find(([name]) => name === 'd');
-          if (!dTag || !filter['#d'].includes(dTag[1])) return false;
-        }
-        return true;
-      });
-    }),
-    event: vi.fn().mockResolvedValue(undefined),
-  };
+  const mockNostr = createMockNostr(async (filters) => {
+    // Filter events based on the query
+    return events.filter((event) => {
+      const filter = filters[0];
+      if (filter.kinds && !filter.kinds.includes(event.kind)) return false;
+      if (filter.authors && !filter.authors.includes(event.pubkey)) return false;
+      if (filter['#d']) {
+        const dTag = event.tags.find(([name]) => name === 'd');
+        if (!dTag || !filter['#d'].includes(dTag[1])) return false;
+      }
+      return true;
+    });
+  });
 
   return ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={queryClient}>
@@ -56,6 +53,29 @@ function createWrapper(events: NostrEvent[] = []) {
       </NostrContext.Provider>
     </QueryClientProvider>
   );
+}
+
+function createMockNostr(
+  queryImplementation: (filters: Parameters<NPool['query']>[0]) => Promise<NostrEvent[]>,
+): NPool {
+  const mockRelay: NRelay = {
+    event: vi.fn().mockResolvedValue(undefined),
+    query: vi.fn().mockResolvedValue([]),
+    req: (async function* () {
+      // The test suite only exercises query(), so this stream stays empty.
+    }) as NRelay['req'],
+    close: vi.fn().mockResolvedValue(undefined),
+  };
+
+  const mockNostr = new NPool({
+    open: () => mockRelay,
+    reqRouter: async (filters) => new Map([['mock', filters]]),
+    eventRouter: async () => ['mock'],
+  });
+
+  vi.spyOn(mockNostr, 'query').mockImplementation(queryImplementation);
+
+  return mockNostr;
 }
 
 describe('useMoodStatus', () => {
@@ -124,16 +144,13 @@ describe('useMoodStatus', () => {
       },
     });
 
-    const mockNostr: NStore = {
-      query: vi.fn().mockImplementation(async (filters) => {
-        const filter = filters[0];
-        // Return empty for Kind 30315, return legacy for Kind 16793
-        if (filter.kinds?.includes(STATUS_KIND)) return [];
-        if (filter.kinds?.includes(16793)) return [legacyEvent];
-        return [];
-      }),
-      event: vi.fn(),
-    };
+    const mockNostr = createMockNostr(async (filters) => {
+      const filter = filters[0];
+      // Return empty for Kind 30315, return legacy for Kind 16793
+      if (filter.kinds?.includes(STATUS_KIND)) return [];
+      if (filter.kinds?.includes(16793)) return [legacyEvent];
+      return [];
+    });
 
     const wrapper = ({ children }: { children: ReactNode }) => (
       <QueryClientProvider client={queryClient}>
