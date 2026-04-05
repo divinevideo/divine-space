@@ -86,6 +86,14 @@ describe('usePageCopilot', () => {
     });
 
     expect(sendChatMessage).toHaveBeenCalledTimes(1);
+    expect(sendChatMessage.mock.calls[0][0][0]).toMatchObject({
+      role: 'system',
+    });
+    expect(sendChatMessage.mock.calls[0][0][0].content).toContain('set_page_title');
+    expect(sendChatMessage.mock.calls[0][0][0].content).toContain('set_page_summary');
+    expect(sendChatMessage.mock.calls[0][0][0].content).toContain('add_widget');
+    expect(sendChatMessage.mock.calls[0][0][0].content).toContain('update_widget');
+    expect(sendChatMessage.mock.calls[0][0][0].content).toContain('remove_widget');
     await waitFor(() => {
       expect(result.current.suggestion?.operations).toHaveLength(1);
       expect(result.current.messages).toHaveLength(2);
@@ -112,6 +120,37 @@ describe('usePageCopilot', () => {
     });
   });
 
+  it('sends prior turns back to Shakespeare for follow-up prompts', async () => {
+    sendChatMessage
+      .mockResolvedValueOnce(createChatResponse(JSON.stringify({
+        message: 'Updated page',
+        operations: [{ type: 'set_page_title', title: 'Creator Home' }],
+      })))
+      .mockResolvedValueOnce(createChatResponse(JSON.stringify({
+        message: 'Moved links higher',
+        operations: [],
+      })));
+
+    const { result } = renderHook(() => usePageCopilot({ page }));
+
+    await act(async () => {
+      await result.current.requestSuggestion('Make it more like Tumblr');
+    });
+
+    await act(async () => {
+      await result.current.requestSuggestion('Now move the links higher');
+    });
+
+    expect(sendChatMessage).toHaveBeenCalledTimes(2);
+    expect(sendChatMessage.mock.calls[1][0]).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ role: 'user', content: 'Make it more like Tumblr' }),
+        expect.objectContaining({ role: 'assistant', content: 'Updated page' }),
+        expect.objectContaining({ role: 'user', content: 'Now move the links higher' }),
+      ])
+    );
+  });
+
   it('rejects Shakespeare responses whose message content is not a string', async () => {
     sendChatMessage.mockResolvedValueOnce(createChatResponse([
       { type: 'text', text: '{"message":"Updated page","operations":[]}' },
@@ -119,7 +158,9 @@ describe('usePageCopilot', () => {
 
     const { result } = renderHook(() => usePageCopilot({ page }));
 
-    await expect(result.current.requestSuggestion('Add a text block')).rejects.toThrow(/string/i);
+    await act(async () => {
+      await expect(result.current.requestSuggestion('Add a text block')).rejects.toThrow(/string/i);
+    });
   });
 
   it('surfaces malformed AI responses as errors', async () => {
@@ -127,6 +168,17 @@ describe('usePageCopilot', () => {
 
     const { result } = renderHook(() => usePageCopilot({ page }));
 
-    await expect(result.current.requestSuggestion('break it')).rejects.toThrow(/invalid/i);
+    await act(async () => {
+      await expect(result.current.requestSuggestion('break it')).rejects.toThrow(/invalid/i);
+    });
+    await waitFor(() => {
+      expect(result.current.error).toMatch(/invalid copilot suggestion payload/i);
+    });
+
+    act(() => {
+      result.current.clearError();
+    });
+
+    expect(result.current.error).toBeNull();
   });
 });

@@ -62,7 +62,8 @@ describe('pageCopilot helpers', () => {
     const context = buildPageCopilotContext(page);
 
     expect(context).toContain('title: My Page');
-    expect(context).toContain('widgets: profile, links');
+    expect(context).toContain('- profile-1: profile');
+    expect(context).toContain('- links-1: links');
   });
 
   it('applies supported operations to the page draft', () => {

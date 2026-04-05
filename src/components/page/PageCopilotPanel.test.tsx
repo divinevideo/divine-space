@@ -177,4 +177,29 @@ describe('PageCopilotPanel', () => {
 
     expect(onRevert).toHaveBeenCalledTimes(1);
   });
+
+  it('shows a copilot error when suggestion generation fails', async () => {
+    sendChatMessage.mockResolvedValueOnce(createChatResponse('not json'));
+
+    const onApply = vi.fn();
+    const onRevert = vi.fn();
+
+    render(
+      <PageCopilotPanel
+        page={page}
+        onApply={onApply}
+        onRevert={onRevert}
+        canRevert={false}
+      />
+    );
+
+    fireEvent.change(screen.getByLabelText(/copilot prompt/i), {
+      target: { value: 'Break it' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /ask copilot/i }));
+
+    expect(await screen.findByText(/invalid copilot suggestion payload/i)).toBeInTheDocument();
+    expect(screen.queryByTestId('copilot-suggestion')).not.toBeInTheDocument();
+    expect(onApply).not.toHaveBeenCalled();
+  });
 });

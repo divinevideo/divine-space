@@ -24,8 +24,12 @@ export function PageCopilotPanel({ page, onApply, onRevert, canRevert }: PageCop
       return;
     }
 
-    await copilot.requestSuggestion(trimmed);
-    setPrompt('');
+    try {
+      await copilot.requestSuggestion(trimmed);
+      setPrompt('');
+    } catch {
+      // The hook exposes the user-facing error state; prevent unhandled promise rejections here.
+    }
   };
 
   const handleApply = () => {

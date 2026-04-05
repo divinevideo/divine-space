@@ -31,5 +31,8 @@ export interface PageCopilotMessage {
 export interface PageCopilotPromptContext {
   title?: string;
   summary?: string;
-  widgetTypes: WidgetType[];
+  widgets: Array<{
+    id: string;
+    type: WidgetType;
+  }>;
 }

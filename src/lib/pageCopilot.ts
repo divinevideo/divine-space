@@ -83,13 +83,17 @@ export function buildPageCopilotContext(page: PageDocument): string {
   const context: PageCopilotPromptContext = {
     title: page.title,
     summary: page.summary,
-    widgetTypes: page.widgets.map((widget) => widget.type),
+    widgets: page.widgets.map((widget) => ({
+      id: widget.id,
+      type: widget.type,
+    })),
   };
 
   return [
     `title: ${context.title ?? ''}`,
     `summary: ${context.summary ?? ''}`,
-    `widgets: ${context.widgetTypes.join(', ')}`,
+    'widgets:',
+    ...context.widgets.map((widget) => `- ${widget.id}: ${widget.type}`),
   ].join('\n');
 }
 
