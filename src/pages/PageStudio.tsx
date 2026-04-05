@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useSeoMeta } from '@unhead/react';
 import { BentoGridEditor } from '@/components/BentoGridEditor';
 import { Layout } from '@/components/Layout';
+import { PageStudioAddWidgetMenu, appendWidgetToLayout } from '@/components/page/PageStudioAddWidgetMenu';
 import { PageStudioShell } from '@/components/page/PageStudioShell';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/useToast';
@@ -10,7 +11,7 @@ import { usePageHistory } from '@/hooks/usePageHistory';
 import { createSidebarBentoLayout } from '@/lib/sidebarBentoLayout';
 import type { PageDocument } from '@/types/page';
 import type { SiteConfigInput } from '@/types/site';
-import type { BentoLayout } from '@/types/widgets';
+import type { BentoLayout, WidgetType } from '@/types/widgets';
 import {
   useDraftPageDocument,
   useEnsureStarterDraft,
@@ -93,6 +94,20 @@ export default function PageStudio() {
     });
   };
 
+  const handleAddWidget = (type: WidgetType) => {
+    setDraftPage((currentPage) => {
+      if (!currentPage) {
+        return currentPage;
+      }
+
+      return {
+        ...currentPage,
+        layout: 'bento',
+        widgets: appendWidgetToLayout(currentPage.widgets, type),
+      };
+    });
+  };
+
   const handleSaveDraft = async () => {
     if (!workingDraft) {
       return;
@@ -149,6 +164,12 @@ export default function PageStudio() {
       <PageStudioShell
         page={workingDraft}
         pubkey={pubkey}
+        topBarActions={workingDraft && pubkey ? (
+          <PageStudioAddWidgetMenu
+            widgets={workingDraft.widgets}
+            onAddWidget={handleAddWidget}
+          />
+        ) : undefined}
         onSaveDraft={() => {
           void handleSaveDraft();
         }}

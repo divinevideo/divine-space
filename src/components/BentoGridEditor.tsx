@@ -1,36 +1,22 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useMemo, useCallback, type ComponentType } from 'react';
 import GridLayout, {
   WidthProvider as RGLWidthProvider,
   type Layout as GridLayoutItems,
 } from 'react-grid-layout/legacy';
-import { Plus, X, User, Users, Music, Link, Video, Smile, Image, MessageSquare, ExternalLink, Type, Square } from 'lucide-react';
+import { X, User, Users, Music, Link, Video, Smile, Image, MessageSquare, ExternalLink, Type, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
-import type { BentoLayout, Widget, WidgetType } from '@/types/widgets';
-import { createWidget } from '@/types/widgets';
+import type { BentoLayout, Widget } from '@/types/widgets';
 import { BentoGridWidget } from '@/components/BentoGrid';
-import {
-  widgetRegistry,
-  getAllWidgetDefinitions,
-  canAddWidget,
-  getDefaultSize,
-  getMinSize,
-  getMaxSize,
-} from '@/lib/widgetRegistry';
+import { getMinSize, getMaxSize, widgetRegistry } from '@/lib/widgetRegistry';
 
 import 'react-grid-layout/css/styles.css';
 
 // Create a responsive grid layout with automatic width handling
 const ResponsiveGridLayout = RGLWidthProvider(GridLayout);
 
-// Map icon names from widget registry to actual icon components
-const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
+const iconMap: Record<string, ComponentType<{ className?: string }>> = {
   User,
   Users,
   Music,
@@ -44,7 +30,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Square,
 };
 
-function getIconComponent(iconName: string): React.ComponentType<{ className?: string }> {
+function getIconComponent(iconName: string): ComponentType<{ className?: string }> {
   return iconMap[iconName] || Square;
 }
 
@@ -69,8 +55,6 @@ export function BentoGridEditor({
   onChange,
   className,
 }: BentoGridEditorProps) {
-  const [isAddWidgetOpen, setIsAddWidgetOpen] = useState(false);
-
   // Convert widgets to react-grid-layout format with constraints
   const gridLayout: GridLayoutItems = useMemo(() => {
     return layout.widgets.map((widget) => {
@@ -115,34 +99,6 @@ export function BentoGridEditor({
     [layout, onChange]
   );
 
-  // Add a new widget to the layout
-  const handleAddWidget = useCallback(
-    (type: WidgetType) => {
-      if (!canAddWidget(type, layout.widgets)) {
-        return;
-      }
-
-      const defaultSize = getDefaultSize(type);
-
-      // Find the next available position (bottom of the grid)
-      const maxY = layout.widgets.reduce((max, w) => Math.max(max, w.y + w.h), 0);
-
-      const newWidget = createWidget(
-        type,
-        { x: 0, y: maxY },
-        defaultSize
-      );
-
-      onChange({
-        ...layout,
-        widgets: [...layout.widgets, newWidget],
-      });
-
-      setIsAddWidgetOpen(false);
-    },
-    [layout, onChange]
-  );
-
   // Remove a widget from the layout
   const handleRemoveWidget = useCallback(
     (widgetId: string) => {
@@ -154,51 +110,8 @@ export function BentoGridEditor({
     [layout, onChange]
   );
 
-  const allWidgetDefinitions = getAllWidgetDefinitions();
-
   return (
     <div className={cn('bento-grid-editor', className)}>
-      {/* Widget Toolbar */}
-      <div data-testid="widget-toolbar" className="mb-4 flex items-center gap-2">
-        <Popover open={isAddWidgetOpen} onOpenChange={setIsAddWidgetOpen}>
-          <PopoverTrigger asChild>
-            <Button variant="outline" className="gap-2">
-              <Plus className="h-4 w-4" />
-              Add Widget
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-80 p-4" align="start">
-            <div className="space-y-2">
-              <h4 className="font-medium text-sm mb-3">Choose a widget to add</h4>
-              <div className="grid grid-cols-2 gap-2">
-                {allWidgetDefinitions.map((definition) => {
-                  const canAdd = canAddWidget(definition.type, layout.widgets);
-                  const IconComponent = getIconComponent(definition.icon);
-
-                  return (
-                    <button
-                      key={definition.type}
-                      data-testid={`add-widget-${definition.type}`}
-                      onClick={() => canAdd && handleAddWidget(definition.type)}
-                      aria-disabled={!canAdd}
-                      className={cn(
-                        'flex items-center gap-2 p-2 rounded-lg border text-left text-sm transition-colors',
-                        canAdd
-                          ? 'hover:bg-accent cursor-pointer'
-                          : 'opacity-50 cursor-not-allowed'
-                      )}
-                    >
-                      <IconComponent className="h-4 w-4 flex-shrink-0" />
-                      <span className="truncate">{definition.name}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </PopoverContent>
-        </Popover>
-      </div>
-
       {/* Grid Layout */}
       <ResponsiveGridLayout
         className="layout"
@@ -231,7 +144,7 @@ export function BentoGridEditor({
       {layout.widgets.length === 0 && (
         <div className="text-center py-12 text-muted-foreground">
           <p className="mb-2">No widgets yet</p>
-          <p className="text-sm">Click "Add Widget" to start building your profile</p>
+          <p className="text-sm">Use the top bar to add a widget</p>
         </div>
       )}
     </div>

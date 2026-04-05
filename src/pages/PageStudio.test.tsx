@@ -375,4 +375,14 @@ describe('PageStudio', () => {
 
     expect(screen.getByTestId('navigate')).toHaveAttribute('data-to', '/studio/page');
   });
+
+  it('exposes add widget in the top bar', async () => {
+    render(
+      <TestApp>
+        <PageStudio />
+      </TestApp>
+    );
+
+    expect(await screen.findByRole('button', { name: /add widget/i })).toBeInTheDocument();
+  });
 });

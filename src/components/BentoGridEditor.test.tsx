@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { TestApp } from '@/test/TestApp';
 import { BentoGridEditor } from './BentoGridEditor';
+import { PageStudioAddWidgetMenu, appendWidgetToLayout } from '@/components/page/PageStudioAddWidgetMenu';
 import type { BentoLayout } from '@/types/widgets';
 
 vi.mock('@/components/widgets/ProfileWidget', () => ({
@@ -137,7 +138,7 @@ describe('BentoGridEditor', () => {
     expect(mockOnChange).toHaveBeenCalled();
   });
 
-  it('shows widget toolbar to add new widgets', () => {
+  it('does not own the add widget toolbar', () => {
     render(
       <TestApp>
         <BentoGridEditor
@@ -148,40 +149,39 @@ describe('BentoGridEditor', () => {
       </TestApp>
     );
 
-    // Should show toolbar with add widget options
-    expect(screen.getByTestId('widget-toolbar')).toBeInTheDocument();
-
-    // Should have add widget button
-    expect(screen.getByRole('button', { name: /add widget/i })).toBeInTheDocument();
+    expect(screen.queryByTestId('widget-toolbar')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /add widget/i })).not.toBeInTheDocument();
   });
 
-  it('adds a new widget when clicking add button', () => {
+  it('appends a new widget to the layout using the shared helper', () => {
+    const nextWidgets = appendWidgetToLayout(defaultLayout.widgets, 'profile');
+
+    expect(nextWidgets).toHaveLength(1);
+    expect(nextWidgets[0].type).toBe('profile');
+    expect(nextWidgets[0].x).toBe(0);
+    expect(nextWidgets[0].y).toBe(0);
+    expect(nextWidgets[0].w).toBe(2);
+    expect(nextWidgets[0].h).toBe(2);
+  });
+
+  it('forwards selected widget types from the top bar menu', () => {
+    const onAddWidget = vi.fn();
+
     render(
       <TestApp>
-        <BentoGridEditor
-          layout={defaultLayout}
-          pubkey={mockPubkey}
-          onChange={mockOnChange}
-        />
+        <PageStudioAddWidgetMenu widgets={defaultLayout.widgets} onAddWidget={onAddWidget} />
       </TestApp>
     );
 
-    // Click the add widget button
     const addButton = screen.getByRole('button', { name: /add widget/i });
     fireEvent.click(addButton);
 
-    // Should show widget type options - profile button should be visible in the dropdown
     const profileOption = screen.getByTestId('add-widget-profile');
     expect(profileOption).toBeInTheDocument();
 
-    // Click on profile widget type
     fireEvent.click(profileOption);
 
-    // onChange should be called with new widget added
-    expect(mockOnChange).toHaveBeenCalled();
-    const newLayout = mockOnChange.mock.calls[0][0] as BentoLayout;
-    expect(newLayout.widgets).toHaveLength(1);
-    expect(newLayout.widgets[0].type).toBe('profile');
+    expect(onAddWidget).toHaveBeenCalledWith('profile');
   });
 
   it('removes a widget when clicking delete button', () => {
@@ -254,13 +254,17 @@ describe('BentoGridEditor', () => {
       </TestApp>
     );
 
-    // Click the add widget button
+    render(
+      <TestApp>
+        <PageStudioAddWidgetMenu widgets={layoutWithProfile.widgets} onAddWidget={mockOnChange} />
+      </TestApp>
+    );
+
     const addButton = screen.getByRole('button', { name: /add widget/i });
     fireEvent.click(addButton);
 
-    // Profile option should be disabled since it doesn't allow multiple instances
     const profileOption = screen.getByTestId('add-widget-profile');
-    expect(profileOption).toHaveAttribute('aria-disabled', 'true');
+    expect(profileOption).toBeDisabled();
   });
 
   it('allows adding widgets that allow multiple instances', () => {
@@ -281,12 +285,16 @@ describe('BentoGridEditor', () => {
       </TestApp>
     );
 
-    // Click the add widget button
+    render(
+      <TestApp>
+        <PageStudioAddWidgetMenu widgets={layoutWithGallery.widgets} onAddWidget={mockOnChange} />
+      </TestApp>
+    );
+
     const addButton = screen.getByRole('button', { name: /add widget/i });
     fireEvent.click(addButton);
 
-    // Gallery option should NOT be disabled since it allows multiple instances
     const galleryOption = screen.getByTestId('add-widget-gallery');
-    expect(galleryOption).not.toHaveAttribute('aria-disabled', 'true');
+    expect(galleryOption).not.toBeDisabled();
   });
 });

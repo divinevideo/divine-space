@@ -10,6 +10,7 @@ export interface PageStudioShellProps {
   page?: PageDocument | null;
   pubkey?: string;
   children: ReactNode;
+  topBarActions?: ReactNode;
   onSaveDraft?: () => void;
   isSavingDraft?: boolean;
   hasDraftChanges?: boolean;
@@ -26,6 +27,7 @@ export function PageStudioShell({
   page,
   pubkey,
   children,
+  topBarActions,
   onSaveDraft,
   isSavingDraft = false,
   hasDraftChanges = false,
@@ -60,6 +62,7 @@ export function PageStudioShell({
             </div>
 
             <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row lg:justify-end">
+              {topBarActions}
               {pubkey ? (
                 <>
                   <Button
