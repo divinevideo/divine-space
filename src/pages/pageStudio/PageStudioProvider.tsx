@@ -71,6 +71,7 @@ export function PageStudioProvider({ children }: { children: ReactNode }) {
   const [draftPage, setDraftPage] = useState<PageDocument | null>(null);
   const [savedDraftSnapshot, setSavedDraftSnapshot] = useState<PageDocument | null>(null);
   const [lastAiSnapshot, setLastAiSnapshot] = useState<PageDocument | null>(null);
+  const lastHydratedDraftSnapshot = useRef<string | null>(null);
   const pageIdentifier = draftPage?.identifier ?? draftQuery.data?.identifier ?? 'profile-draft';
   const saveDraftMutation = useUpdateSiteConfig(pageIdentifier);
   const revisionHistory = usePageHistory(pageIdentifier);
@@ -86,18 +87,30 @@ export function PageStudioProvider({ children }: { children: ReactNode }) {
     }
   }, [draftQuery.data, draftQuery.isSuccess, ensureStarterDraft, pubkey]);
 
+  const workingDraft = draftPage ?? draftQuery.data ?? null;
+  const hasDraftChanges = serializePageDocument(workingDraft) !== serializePageDocument(savedDraftSnapshot);
+
   useEffect(() => {
     if (draftQuery.data === undefined) {
       return;
     }
 
+    const serializedDraftQuery = serializePageDocument(draftQuery.data);
+    if (serializedDraftQuery === lastHydratedDraftSnapshot.current) {
+      return;
+    }
+
+    if (draftPage !== null || savedDraftSnapshot !== null) {
+      if (hasDraftChanges) {
+        return;
+      }
+    }
+
     setDraftPage(draftQuery.data);
     setSavedDraftSnapshot(draftQuery.data);
     setLastAiSnapshot(null);
-  }, [draftQuery.data]);
-
-  const workingDraft = draftPage ?? draftQuery.data ?? null;
-  const hasDraftChanges = serializePageDocument(workingDraft) !== serializePageDocument(savedDraftSnapshot);
+    lastHydratedDraftSnapshot.current = serializedDraftQuery;
+  }, [draftPage, draftQuery.data, hasDraftChanges, savedDraftSnapshot]);
 
   const handleApplySuggestion = (suggestion: PageCopilotSuggestion) => {
     if (!workingDraft) {
@@ -164,7 +177,7 @@ export function PageStudioProvider({ children }: { children: ReactNode }) {
       });
     }
 
-    await publishDraft.mutateAsync();
+    await publishDraft.mutateAsync(workingDraft);
   };
 
   const value: PageStudioControllerValue = {

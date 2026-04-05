@@ -78,12 +78,13 @@ export function usePublishPageDocument(pubkey?: string) {
   const queryClient = useQueryClient();
 
   const publishDraft = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (draftOverride?: PageDocument) => {
       if (!targetPubkey) {
         throw new Error('Not authenticated');
       }
 
       const draft =
+        draftOverride ??
         draftQuery.data ??
         toPageDocument(
           (await draftQuery.refetch()).data,
