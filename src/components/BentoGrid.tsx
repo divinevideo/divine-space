@@ -13,6 +13,7 @@ import { LinksWidget } from '@/components/widgets/LinksWidget';
 import { MoodWidget } from '@/components/widgets/MoodWidget';
 import { VideosWidget } from '@/components/widgets/VideosWidget';
 import { NotesWidget } from '@/components/widgets/NotesWidget';
+import { EventsWidget } from '@/components/widgets/EventsWidget';
 import { EmbedWidget } from '@/components/widgets/EmbedWidget';
 import { TextWidget } from '@/components/widgets/TextWidget';
 
@@ -42,6 +43,7 @@ const WIDGET_COMPONENTS: Partial<Record<WidgetType, React.ComponentType<{ widget
   mood: MoodWidget,
   videos: VideosWidget,
   notes: NotesWidget,
+  events: EventsWidget,
   embed: EmbedWidget,
   text: TextWidget,
 };

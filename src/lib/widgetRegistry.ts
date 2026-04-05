@@ -104,6 +104,17 @@ export const widgetRegistry: Record<WidgetType, WidgetDefinition> = {
     resizable: true,
     allowMultiple: false,
   },
+  events: {
+    type: 'events',
+    name: 'Upcoming Events',
+    description: 'Shows and appearances from NIP-52 calendar events',
+    icon: 'Calendar',
+    defaultSize: { w: 2, h: 2 },
+    minSize: { w: 1, h: 1 },
+    maxSize: { w: 4, h: 4 },
+    resizable: true,
+    allowMultiple: false,
+  },
   embed: {
     type: 'embed',
     name: 'Embed',
