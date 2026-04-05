@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { TestApp } from '@/test/TestApp';
 import type { PageDocument } from '@/types/page';
+import Settings from './Settings';
+import MySpaceSettings from './MySpaceSettings';
 import PageStudio from './PageStudio';
 
 const ensureStarterDraft = vi.fn();
@@ -23,6 +25,15 @@ vi.mock('@/components/Layout', () => ({
   ),
 }));
 
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+
+  return {
+    ...actual,
+    Navigate: ({ to }: { to: string }) => <div data-testid="navigate" data-to={to} />,
+  };
+});
+
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: vi.fn(() => ({
     pubkey: 'a'.repeat(64),
@@ -31,6 +42,19 @@ vi.mock('@/hooks/useAuth', () => ({
     signer: undefined,
     isKeycastLogin: false,
     logout: vi.fn(),
+  })),
+}));
+
+vi.mock('@/hooks/useLoggedInAccounts', () => ({
+  useLoggedInAccounts: vi.fn(() => ({
+    currentUser: { pubkey: 'a'.repeat(64) },
+  })),
+}));
+
+vi.mock('@/contexts/KeycastContext', () => ({
+  useKeycast: vi.fn(() => ({
+    pubkey: 'a'.repeat(64),
+    isAuthenticated: true,
   })),
 }));
 
@@ -115,5 +139,25 @@ describe('PageStudio', () => {
 
     expect(await screen.findByRole('button', { name: /publish/i })).toBeInTheDocument();
     expect(screen.getByTestId('bento-grid')).toBeInTheDocument();
+  });
+
+  it('redirects authenticated profile settings to the studio', () => {
+    render(
+      <TestApp>
+        <Settings />
+      </TestApp>
+    );
+
+    expect(screen.getByTestId('navigate')).toHaveAttribute('data-to', '/studio/page');
+  });
+
+  it('redirects authenticated MySpace settings to the studio', () => {
+    render(
+      <TestApp>
+        <MySpaceSettings />
+      </TestApp>
+    );
+
+    expect(screen.getByTestId('navigate')).toHaveAttribute('data-to', '/studio/page');
   });
 });

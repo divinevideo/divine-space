@@ -1,5 +1,6 @@
 import { useSeoMeta } from '@unhead/react';
 import { useState } from 'react';
+import { Navigate } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { EditProfileForm } from '@/components/EditProfileForm';
 import { useKeycast } from '@/contexts/KeycastContext';
@@ -171,6 +172,10 @@ export default function Settings() {
     title: 'Settings - DiVine Space',
     description: 'Manage your DiVine Space profile and settings.',
   });
+
+  if (isAuthenticated) {
+    return <Navigate to="/studio/page" replace />;
+  }
 
   if (!isAuthenticated) {
     return (

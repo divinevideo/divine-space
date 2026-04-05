@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSeoMeta } from '@unhead/react';
+import { Navigate } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { useKeycast } from '@/contexts/KeycastContext';
 import { useLoggedInAccounts } from '@/hooks/useLoggedInAccounts';
@@ -73,6 +74,10 @@ export default function MySpaceSettings() {
     title: 'Customize Profile - DiVine Space',
     description: 'Customize your MySpace-style profile on DiVine Space.',
   });
+
+  if (isAuthenticated && pubkey) {
+    return <Navigate to="/studio/page" replace />;
+  }
 
   if (!isAuthenticated || !pubkey) {
     return (

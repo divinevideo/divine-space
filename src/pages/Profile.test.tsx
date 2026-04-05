@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { TestApp } from '@/test/TestApp';
 import type { PageDocument } from '@/types/page';
+import { useAuth } from '@/hooks/useAuth';
+import { usePublishedPageDocument } from '@/hooks/usePageDocument';
 import Profile from './Profile';
 
 vi.mock('@unhead/react', () => ({
@@ -75,9 +78,36 @@ vi.mock('@/components/page/PublicPageRenderer', () => ({
   ),
 }));
 
-import { usePublishedPageDocument } from '@/hooks/usePageDocument';
-
 describe('Profile hosted page rendering', () => {
+  it('links owners to the hosted page studio', async () => {
+    const pubkey = 'f'.repeat(64);
+
+    vi.mocked(usePublishedPageDocument).mockReturnValue({
+      data: null,
+      isLoading: false,
+    } as never);
+
+    vi.mocked(useAuth).mockReturnValue({
+      pubkey,
+      isAuthenticated: true,
+    } as never);
+
+    render(
+      <TestApp>
+        <Profile pubkey={pubkey} />
+      </TestApp>
+    );
+
+    expect(await screen.findByRole('link', { name: /edit profile/i })).toHaveAttribute(
+      'href',
+      '/studio/page'
+    );
+    expect(screen.getByRole('link', { name: /customize profile/i })).toHaveAttribute(
+      'href',
+      '/studio/page'
+    );
+  });
+
   it('renders the published hosted page when one exists', () => {
     const pubkey = 'f'.repeat(64);
 

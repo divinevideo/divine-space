@@ -312,7 +312,7 @@ export default function Profile({ pubkey, isSubdomain, subdomain }: ProfileProps
                 {/* Action Buttons */}
                 <div className="flex gap-2 justify-center md:justify-start">
                   {isOwnProfile ? (
-                    <Link to="/settings/profile">
+                    <Link to="/studio/page">
                       <Button variant="outline" className="gap-2">
                         <Edit className="h-4 w-4" />
                         Edit Profile
@@ -491,7 +491,7 @@ export default function Profile({ pubkey, isSubdomain, subdomain }: ProfileProps
 
             {/* Customize Profile button for own profile */}
             {isOwnProfile && (
-              <Link to="/settings/myspace">
+              <Link to="/studio/page">
                 <Button variant="outline" className="w-full gap-2">
                   <Palette className="h-4 w-4" />
                   Customize Profile
