@@ -45,6 +45,10 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
+function normalizeGridValue(value: number): number {
+  return Math.round(value);
+}
+
 function sanitizeWidgetLayoutUpdate(
   widget: Widget,
   nextLayout: Partial<Pick<Widget, 'x' | 'y' | 'w' | 'h'>>,
@@ -52,12 +56,12 @@ function sanitizeWidgetLayoutUpdate(
 ): Pick<Widget, 'x' | 'y' | 'w' | 'h'> {
   const minSize = getMinSize(widget.type);
   const maxSize = getMaxSize(widget.type);
-  const nextW = nextLayout.w ?? widget.w;
-  const nextH = nextLayout.h ?? widget.h;
+  const nextW = normalizeGridValue(nextLayout.w ?? widget.w);
+  const nextH = normalizeGridValue(nextLayout.h ?? widget.h);
   const w = clamp(nextW, minSize.w, maxSize.w);
   const h = clamp(nextH, minSize.h, maxSize.h);
-  const x = clamp(nextLayout.x ?? widget.x, 0, Math.max(0, gridCols - w));
-  const y = Math.max(0, nextLayout.y ?? widget.y);
+  const x = clamp(normalizeGridValue(nextLayout.x ?? widget.x), 0, Math.max(0, gridCols - w));
+  const y = Math.max(0, normalizeGridValue(nextLayout.y ?? widget.y));
 
   return { x, y, w, h };
 }

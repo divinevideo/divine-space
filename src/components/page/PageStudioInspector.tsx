@@ -20,18 +20,21 @@ interface PageStudioInspectorProps {
 }
 
 function NumberField({
+  id,
   label,
   value,
   onChange,
 }: {
+  id: string;
   label: string;
   value: number;
   onChange: (value: number) => void;
 }) {
   return (
     <div className="space-y-2">
-      <Label>{label}</Label>
+      <Label htmlFor={id}>{label}</Label>
       <Input
+        id={id}
         type="number"
         value={value}
         onChange={(event) => {
@@ -91,21 +94,25 @@ function InspectorBody({
         <div className="text-sm font-medium">Layout</div>
         <div className="grid grid-cols-2 gap-3">
           <NumberField
+            id="page-studio-widget-x"
             label="X"
             value={widget.x}
             onChange={(x) => onUpdateWidget(widget.id, { x })}
           />
           <NumberField
+            id="page-studio-widget-y"
             label="Y"
             value={widget.y}
             onChange={(y) => onUpdateWidget(widget.id, { y })}
           />
           <NumberField
+            id="page-studio-widget-w"
             label="Width"
             value={widget.w}
             onChange={(w) => onUpdateWidget(widget.id, { w })}
           />
           <NumberField
+            id="page-studio-widget-h"
             label="Height"
             value={widget.h}
             onChange={(h) => onUpdateWidget(widget.id, { h })}
@@ -134,6 +141,9 @@ function InspectorBody({
 
 export function PageStudioInspector(props: PageStudioInspectorProps) {
   const isMobile = useIsMobile();
+  const preventOutsideDismiss = (event: { preventDefault: () => void }) => {
+    event.preventDefault();
+  };
 
   if (isMobile) {
     return (
@@ -175,6 +185,8 @@ export function PageStudioInspector(props: PageStudioInspectorProps) {
         showOverlay={false}
         data-testid="page-studio-inspector"
         className="w-full overflow-y-auto sm:max-w-lg"
+        onInteractOutside={preventOutsideDismiss}
+        onPointerDownOutside={preventOutsideDismiss}
       >
         <SheetHeader className="mb-4 px-0 text-left">
           <SheetTitle>{widgetRegistry[props.widget.type].name}</SheetTitle>

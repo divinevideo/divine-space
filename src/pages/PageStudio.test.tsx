@@ -534,7 +534,7 @@ describe('PageStudio', () => {
       shell: { type: 'sidebar-bento' },
       includes: [],
       widgets: [
-        { id: 'profile-1', type: 'profile', x: 1, y: 2, w: 2, h: 2 },
+        { id: 'profile-1', type: 'profile', x: 1.2, y: 2.7, w: 2.4, h: 2.6 },
       ],
       title: 'My Page',
       summary: 'Draft page preview',
@@ -549,13 +549,14 @@ describe('PageStudio', () => {
     fireEvent.click(await screen.findByTestId('widget-profile-1'));
 
     const inspector = await screen.findByTestId('page-studio-inspector');
-    fireEvent.change(within(inspector).getAllByRole('spinbutton')[0], {
-      target: { value: '2' },
+    fireEvent.change(within(inspector).getByRole('spinbutton', { name: 'X' }), {
+      target: { value: '2.7' },
     });
 
     expect(screen.getByTestId('widget-profile-1')).toHaveAttribute('data-x', '2');
-    expect(screen.getByTestId('widget-profile-1')).toHaveAttribute('data-y', '2');
+    expect(screen.getByTestId('widget-profile-1')).toHaveAttribute('data-y', '3');
     expect(screen.getByTestId('widget-profile-1')).toHaveAttribute('data-w', '2');
+    expect(screen.getByTestId('widget-profile-1')).toHaveAttribute('data-h', '3');
   });
 
   it('clamps inspector geometry before saving draft', async () => {
@@ -564,7 +565,7 @@ describe('PageStudio', () => {
       shell: { type: 'sidebar-bento' },
       includes: [],
       widgets: [
-        { id: 'profile-1', type: 'profile', x: 1, y: 2, w: 2, h: 2 },
+        { id: 'profile-1', type: 'profile', x: 1.2, y: 2.7, w: 2.4, h: 2.6 },
       ],
       title: 'My Page',
       summary: 'Draft page preview',
@@ -579,16 +580,17 @@ describe('PageStudio', () => {
     fireEvent.click(await screen.findByTestId('widget-profile-1'));
 
     const inspector = await screen.findByTestId('page-studio-inspector');
-    fireEvent.change(within(inspector).getAllByRole('spinbutton')[1], {
-      target: { value: '-5' },
+    fireEvent.change(within(inspector).getByRole('spinbutton', { name: 'Y' }), {
+      target: { value: '-5.2' },
     });
-    fireEvent.change(within(inspector).getAllByRole('spinbutton')[2], {
-      target: { value: '99' },
+    fireEvent.change(within(inspector).getByRole('spinbutton', { name: 'Width' }), {
+      target: { value: '3.8' },
     });
 
     expect(screen.getByTestId('widget-profile-1')).toHaveAttribute('data-y', '0');
     expect(screen.getByTestId('widget-profile-1')).toHaveAttribute('data-w', '4');
     expect(screen.getByTestId('widget-profile-1')).toHaveAttribute('data-x', '0');
+    expect(screen.getByTestId('widget-profile-1')).toHaveAttribute('data-h', '3');
 
     fireEvent.click(screen.getByRole('button', { name: /save draft/i }));
 
@@ -601,7 +603,7 @@ describe('PageStudio', () => {
               x: 0,
               y: 0,
               w: 4,
-              h: 2,
+              h: 3,
             }),
           ],
         })
