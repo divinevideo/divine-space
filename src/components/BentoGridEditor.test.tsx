@@ -4,6 +4,14 @@ import { TestApp } from '@/test/TestApp';
 import { BentoGridEditor } from './BentoGridEditor';
 import type { BentoLayout } from '@/types/widgets';
 
+vi.mock('@/components/widgets/ProfileWidget', () => ({
+  ProfileWidget: () => <div data-testid="profile-widget">ProfileWidget</div>,
+}));
+
+vi.mock('@/components/widgets/Top8Widget', () => ({
+  Top8Widget: () => <div data-testid="top8-widget">Top8Widget</div>,
+}));
+
 // Mock react-grid-layout since it requires a DOM environment
 // Note: The component uses require() so the mock needs to work with CJS interop
 vi.mock('react-grid-layout', async () => {
@@ -94,6 +102,21 @@ describe('BentoGridEditor', () => {
     // Should render widget containers for each widget
     expect(screen.getByTestId('widget-profile-1')).toBeInTheDocument();
     expect(screen.getByTestId('widget-top8-1')).toBeInTheDocument();
+  });
+
+  it('renders the actual widget preview while editing', () => {
+    render(
+      <TestApp>
+        <BentoGridEditor
+          layout={layoutWithWidgets}
+          pubkey={mockPubkey}
+          onChange={mockOnChange}
+        />
+      </TestApp>
+    );
+
+    expect(screen.getByTestId('profile-widget')).toBeInTheDocument();
+    expect(screen.getByTestId('top8-widget')).toBeInTheDocument();
   });
 
   it('calls onChange when layout changes', () => {

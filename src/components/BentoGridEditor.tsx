@@ -18,6 +18,7 @@ import {
 import { cn } from '@/lib/utils';
 import type { BentoLayout, Widget, WidgetType } from '@/types/widgets';
 import { createWidget } from '@/types/widgets';
+import { BentoGridWidget } from '@/components/BentoGrid';
 import {
   widgetRegistry,
   getAllWidgetDefinitions,
@@ -250,7 +251,7 @@ interface WidgetEditorItemProps {
 /**
  * Individual widget item in the editor with controls for editing and deletion.
  */
-function WidgetEditorItem({ widget, onRemove }: WidgetEditorItemProps) {
+function WidgetEditorItem({ widget, pubkey, onRemove }: WidgetEditorItemProps) {
   const definition = widgetRegistry[widget.type];
   const IconComponent = getIconComponent(definition.icon);
 
@@ -277,12 +278,9 @@ function WidgetEditorItem({ widget, onRemove }: WidgetEditorItemProps) {
         </Button>
       </div>
 
-      {/* Widget Content Placeholder */}
-      <CardContent className="p-4 flex items-center justify-center h-[calc(100%-40px)]">
-        <div className="text-center text-muted-foreground text-sm">
-          <IconComponent className="h-8 w-8 mx-auto mb-2 opacity-50" />
-          <p>{definition.name}</p>
-          <p className="text-xs mt-1">{widget.w}x{widget.h}</p>
+      <CardContent className="h-[calc(100%-40px)] overflow-hidden p-3">
+        <div className="pointer-events-none h-full">
+          <BentoGridWidget widget={widget} pubkey={pubkey} />
         </div>
       </CardContent>
     </Card>

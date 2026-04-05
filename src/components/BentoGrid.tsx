@@ -31,6 +31,12 @@ export interface BentoGridProps {
   className?: string;
 }
 
+export interface BentoGridWidgetProps {
+  widget: Widget;
+  pubkey: string;
+  isEditing?: boolean;
+}
+
 /**
  * Map of widget types to their corresponding components.
  * Only includes implemented widgets.
@@ -62,6 +68,16 @@ function PlaceholderWidget({ widget }: { widget: Widget }) {
   );
 }
 
+export function BentoGridWidget({ widget, pubkey, isEditing = false }: BentoGridWidgetProps) {
+  const WidgetComponent = WIDGET_COMPONENTS[widget.type];
+
+  if (WidgetComponent) {
+    return <WidgetComponent widget={widget} pubkey={pubkey} isEditing={isEditing} />;
+  }
+
+  return <PlaceholderWidget widget={widget} />;
+}
+
 /**
  * BentoGrid renders widgets in a CSS Grid layout.
  *
@@ -87,8 +103,6 @@ export function BentoGrid({ layout, pubkey, isEditing = false, className }: Bent
       }}
     >
       {widgets.map((widget) => {
-        const WidgetComponent = WIDGET_COMPONENTS[widget.type];
-
         return (
           <div
             key={widget.id}
@@ -97,11 +111,7 @@ export function BentoGrid({ layout, pubkey, isEditing = false, className }: Bent
               gridRow: `${widget.y + 1} / span ${widget.h}`,
             }}
           >
-            {WidgetComponent ? (
-              <WidgetComponent widget={widget} pubkey={pubkey} isEditing={isEditing} />
-            ) : (
-              <PlaceholderWidget widget={widget} />
-            )}
+            <BentoGridWidget widget={widget} pubkey={pubkey} isEditing={isEditing} />
           </div>
         );
       })}
