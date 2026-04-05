@@ -1,7 +1,9 @@
 import { createWidget, isWidgetType } from '@/types/widgets';
+import { getWidgetDefinition } from '@/lib/widgetRegistry';
 import type { PageDocument } from '@/types/page';
 import type {
   PageCopilotOperation,
+  PageCopilotProposalItem,
   PageCopilotPromptContext,
   PageCopilotSuggestion,
 } from '@/types/pageCopilot';
@@ -118,6 +120,57 @@ export function parsePageCopilotSuggestion(raw: string): PageCopilotSuggestion {
   return {
     message: parsed.message,
     operations,
+  };
+}
+
+function getOperationId(operation: PageCopilotOperation, index: number): string {
+  return `${operation.type}-${index}`;
+}
+
+function getWidgetLabel(page: PageDocument, widgetId: string): string {
+  const widget = page.widgets.find((candidate) => candidate.id === widgetId);
+  if (!widget) {
+    return 'widget';
+  }
+
+  return getWidgetDefinition(widget.type).name;
+}
+
+function summarizePageOperation(page: PageDocument, operation: PageCopilotOperation): string {
+  switch (operation.type) {
+    case 'set_page_title':
+      return `Rename page title to "${operation.title}"`;
+    case 'set_page_summary':
+      return `Update page summary to "${operation.summary}"`;
+    case 'add_widget':
+      return `Add ${getWidgetDefinition(operation.widgetType).name} widget`;
+    case 'update_widget':
+      return `Update ${getWidgetLabel(page, operation.widgetId)}`;
+    case 'remove_widget':
+      return `Remove ${getWidgetLabel(page, operation.widgetId)}`;
+  }
+}
+
+export function buildProposalItems(
+  page: PageDocument,
+  suggestion: PageCopilotSuggestion
+): PageCopilotProposalItem[] {
+  return suggestion.operations.map((operation, index) => ({
+    operationId: getOperationId(operation, index),
+    label: summarizePageOperation(page, operation),
+    operation,
+  }));
+}
+
+export function filterSuggestionOperations(
+  suggestion: PageCopilotSuggestion,
+  selectedOperationIds: Set<string>
+): PageCopilotSuggestion {
+  return {
+    ...suggestion,
+    operations: suggestion.operations.filter((operation, index) =>
+      selectedOperationIds.has(getOperationId(operation, index))
+    ),
   };
 }
 

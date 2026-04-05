@@ -95,12 +95,12 @@ describe('PageCopilotPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: /ask copilot/i }));
 
     const suggestion = await screen.findByTestId('copilot-suggestion');
-    expect(within(suggestion).getByText(/set_page_title/i)).toBeInTheDocument();
-    expect(within(suggestion).getByText(/add_widget/i)).toBeInTheDocument();
+    expect(within(suggestion).getByLabelText(/rename page title to "creator home"/i)).toBeChecked();
+    expect(within(suggestion).getByLabelText(/add text block widget/i)).toBeChecked();
     expect(within(suggestion).getByText(/updated page/i)).toBeInTheDocument();
   });
 
-  it('calls onApply with the validated suggestion object', async () => {
+  it('applies only the selected proposal items', async () => {
     const onApply = vi.fn();
     const onRevert = vi.fn();
 
@@ -119,15 +119,15 @@ describe('PageCopilotPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: /ask copilot/i }));
 
     await screen.findByTestId('copilot-suggestion');
-    fireEvent.click(screen.getByRole('button', { name: /apply suggestion/i }));
+    fireEvent.click(screen.getByLabelText(/rename page title to "creator home"/i));
+    fireEvent.click(screen.getByRole('button', { name: /apply selected changes/i }));
 
     expect(onApply).toHaveBeenCalledWith(
       expect.objectContaining({
         message: 'Updated page',
-        operations: expect.arrayContaining([
-          expect.objectContaining({ type: 'set_page_title', title: 'Creator Home' }),
+        operations: [
           expect.objectContaining({ type: 'add_widget', widgetType: 'text' }),
-        ]),
+        ],
       })
     );
   });
@@ -154,7 +154,7 @@ describe('PageCopilotPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: /dismiss suggestion/i }));
 
     await waitFor(() => {
-      expect(screen.queryByText(/set_page_title/i)).not.toBeInTheDocument();
+      expect(screen.queryByLabelText(/rename page title to "creator home"/i)).not.toBeInTheDocument();
     });
     expect(screen.getByText(/add a text block/i)).toBeInTheDocument();
     expect(screen.getByText(/updated page/i)).toBeInTheDocument();

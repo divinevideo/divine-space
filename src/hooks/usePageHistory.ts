@@ -1,7 +1,6 @@
-import { useCallback } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
-import { useAuth } from './useAuth';
+import { useCurrentUser } from './useCurrentUser';
 import { useKeycastPublish } from './useKeycastPublish';
 import {
   buildPageRevisionTags,
@@ -11,28 +10,32 @@ import {
 import type { PageDocument } from '@/types/page';
 import type { PageRevision, PageRevisionSource } from '@/types/pageHistory';
 
+export const PAGE_HISTORY_KIND = 31234;
+
 export const PAGE_HISTORY_QUERY_KEY = (pubkey: string, identifier = 'profile-draft') => [
   'page-history',
   pubkey,
   identifier,
 ];
 
-export function usePageHistory(pubkey?: string, identifier = 'profile-draft') {
+export function usePageHistory(identifier = 'profile-draft') {
   const { nostr } = useNostr();
-  const { signer } = useAuth();
+  const { user } = useCurrentUser();
+  const { mutateAsync: publish } = useKeycastPublish();
+  const queryClient = useQueryClient();
 
-  return useQuery({
-    queryKey: pubkey ? PAGE_HISTORY_QUERY_KEY(pubkey, identifier) : ['page-history', 'none', identifier],
-    enabled: !!pubkey && !!signer?.nip44,
+  const query = useQuery({
+    queryKey: user ? PAGE_HISTORY_QUERY_KEY(user.pubkey, identifier) : ['page-history', 'none', identifier],
+    enabled: !!user?.pubkey && !!user.signer?.nip44,
     queryFn: async (): Promise<PageRevision[]> => {
-      if (!pubkey || !signer?.nip44) {
+      if (!user?.pubkey || !user.signer?.nip44) {
         return [];
       }
 
       const events = await nostr.query([
         {
-          kinds: [31234],
-          authors: [pubkey],
+          kinds: [PAGE_HISTORY_KIND],
+          authors: [user.pubkey],
           '#k': ['30512'],
           limit: 50,
         },
@@ -40,24 +43,21 @@ export function usePageHistory(pubkey?: string, identifier = 'profile-draft') {
 
       const revisions = await Promise.all(
         events.map(async (event) => {
-          const plaintext = await signer.nip44!.decrypt(event.pubkey, event.content);
-          return parsePageRevisionContent(event, plaintext);
+          try {
+            const plaintext = await user.signer.nip44!.decrypt(user.pubkey, event.content);
+            return parsePageRevisionContent(event, plaintext);
+          } catch {
+            return null;
+          }
         })
       );
 
       return revisions
-        .filter((revision): revision is PageRevision => !!revision)
+        .filter((revision): revision is PageRevision => revision !== null)
         .filter((revision) => revision.pageIdentifier === identifier)
         .sort((left, right) => right.createdAt - left.createdAt);
     },
   });
-}
-
-export function useCreatePageRevision(pubkey?: string) {
-  const { pubkey: authPubkey, signer } = useAuth();
-  const targetPubkey = pubkey ?? authPubkey;
-  const { mutateAsync: publish } = useKeycastPublish();
-  const queryClient = useQueryClient();
 
   const createRevision = useMutation({
     mutationFn: async ({
@@ -67,44 +67,41 @@ export function useCreatePageRevision(pubkey?: string) {
       page: PageDocument;
       source: PageRevisionSource;
     }) => {
-      if (!targetPubkey) {
+      if (!user?.pubkey) {
         throw new Error('Not authenticated');
       }
 
-      if (!signer?.nip44) {
+      if (!user.signer?.nip44) {
         throw new Error('NIP-44 encryption not available');
       }
 
-      const snapshot = createPageRevisionSnapshot(page, targetPubkey, source);
+      const snapshot = createPageRevisionSnapshot(page, source);
       const revisionId = `${page.identifier}-${source}-${snapshot.createdAt}`;
-      const ciphertext = await signer.nip44.encrypt(
-        targetPubkey,
-        JSON.stringify(snapshot.unsignedEvent)
-      );
+      const ciphertext = await user.signer.nip44.encrypt(user.pubkey, JSON.stringify(snapshot));
 
       return publish({
-        kind: 31234,
+        kind: PAGE_HISTORY_KIND,
         content: ciphertext,
-        tags: buildPageRevisionTags(page.identifier, source, revisionId),
+        tags: buildPageRevisionTags(revisionId),
         created_at: snapshot.createdAt,
       });
     },
-    onSuccess: async (_event, variables) => {
-      if (!targetPubkey) return;
+    onSuccess: async () => {
+      if (!user?.pubkey) {
+        return;
+      }
 
       await queryClient.invalidateQueries({
-        queryKey: PAGE_HISTORY_QUERY_KEY(targetPubkey, variables.page.identifier),
+        queryKey: PAGE_HISTORY_QUERY_KEY(user.pubkey, identifier),
       });
     },
   });
 
-  const restoreRevision = useCallback(async (revision: PageRevision): Promise<PageDocument> => {
-    return revision.page;
-  }, []);
-
   return {
-    ...createRevision,
+    ...query,
+    revisions: query.data ?? [],
     createRevision,
-    restoreRevision,
   };
 }
+
+export default usePageHistory;

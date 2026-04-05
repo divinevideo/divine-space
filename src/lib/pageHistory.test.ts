@@ -25,38 +25,54 @@ const page: PageDocument = {
 };
 
 describe('pageHistory helpers', () => {
-  it('builds revision tags for a private 30512 snapshot', () => {
-    const tags = buildPageRevisionTags('profile-draft', 'save-draft', 'rev-1');
+  it('builds revision tags without leaking page metadata', () => {
+    const tags = buildPageRevisionTags('rev-1');
 
-    expect(tags).toContainEqual(['k', '30512']);
-    expect(tags).toContainEqual(['d', 'rev-1']);
-    expect(tags).toContainEqual(['identifier', 'profile-draft']);
-    expect(tags).toContainEqual(['source', 'save-draft']);
+    expect(tags).toEqual([
+      ['d', 'rev-1'],
+      ['k', '30512'],
+      ['alt', 'DiVine Space page revision'],
+    ]);
   });
 
-  it('serializes a page snapshot into an unsigned 30512 event payload', () => {
-    const snapshot = createPageRevisionSnapshot(page, 'owner-pubkey', 'save-draft');
+  it('snapshots the page for private revision storage', () => {
+    const snapshot = createPageRevisionSnapshot(page, 'save-draft', 123);
 
     expect(snapshot.source).toBe('save-draft');
     expect(snapshot.pageIdentifier).toBe('profile-draft');
-    expect(snapshot.unsignedEvent.kind).toBe(30512);
-    expect(snapshot.unsignedEvent.tags).toContainEqual(['d', 'profile-draft']);
+    expect(snapshot.createdAt).toBe(123);
+    expect(snapshot.page.title).toBe('Creator Home');
+    expect(snapshot.page.widgets[0].type).toBe('profile');
   });
 
-  it('parses decrypted revision content back into a restorable page', () => {
-    const snapshot = createPageRevisionSnapshot(page, 'owner-pubkey', 'publish');
+  it('parses a decrypted revision snapshot back into a restorable page', () => {
+    const snapshot = createPageRevisionSnapshot(page, 'publish', 456);
     const revision = parsePageRevisionContent(
       {
         id: 'revision-event',
-        created_at: 123,
-        tags: buildPageRevisionTags('profile-draft', 'publish', 'rev-1'),
+        created_at: 456,
+        tags: buildPageRevisionTags('rev-1'),
       },
-      JSON.stringify(snapshot.unsignedEvent)
+      JSON.stringify(snapshot)
     );
 
+    expect(revision).not.toBeNull();
     expect(revision?.id).toBe('revision-event');
     expect(revision?.source).toBe('publish');
+    expect(revision?.pageIdentifier).toBe('profile-draft');
     expect(revision?.page.title).toBe('Creator Home');
-    expect(revision?.page.identifier).toBe('profile-draft');
+  });
+
+  it('rejects malformed decrypted revision payloads', () => {
+    expect(
+      parsePageRevisionContent(
+        {
+          id: 'revision-event',
+          created_at: 456,
+          tags: buildPageRevisionTags('rev-1'),
+        },
+        'not json'
+      )
+    ).toBeNull();
   });
 });

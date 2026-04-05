@@ -1,8 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 import { usePageCopilot } from '@/hooks/usePageCopilot';
+import {
+  buildProposalItems,
+  filterSuggestionOperations,
+} from '@/lib/pageCopilot';
 import type { PageDocument } from '@/types/page';
 import type { PageCopilotSuggestion } from '@/types/pageCopilot';
 
@@ -15,7 +19,25 @@ export interface PageCopilotPanelProps {
 
 export function PageCopilotPanel({ page, onApply, onRevert, canRevert }: PageCopilotPanelProps) {
   const [prompt, setPrompt] = useState('');
+  const [selectedOperationIds, setSelectedOperationIds] = useState<Set<string>>(new Set());
   const copilot = usePageCopilot({ page });
+
+  const proposalItems = useMemo(() => {
+    if (!page || !copilot.suggestion) {
+      return [];
+    }
+
+    return buildProposalItems(page, copilot.suggestion);
+  }, [copilot.suggestion, page]);
+
+  useEffect(() => {
+    if (!proposalItems.length) {
+      setSelectedOperationIds(new Set());
+      return;
+    }
+
+    setSelectedOperationIds(new Set(proposalItems.map((item) => item.operationId)));
+  }, [proposalItems]);
 
   const handleSubmit = async () => {
     const trimmed = prompt.trim();
@@ -37,11 +59,23 @@ export function PageCopilotPanel({ page, onApply, onRevert, canRevert }: PageCop
       return;
     }
 
-    onApply(copilot.suggestion);
+    onApply(filterSuggestionOperations(copilot.suggestion, selectedOperationIds));
   };
 
   const handleDismiss = () => {
     copilot.clearSuggestion();
+  };
+
+  const handleToggleOperation = (operationId: string) => {
+    setSelectedOperationIds((current) => {
+      const next = new Set(current);
+      if (next.has(operationId)) {
+        next.delete(operationId);
+      } else {
+        next.add(operationId);
+      }
+      return next;
+    });
   };
 
   return (
@@ -104,11 +138,21 @@ export function PageCopilotPanel({ page, onApply, onRevert, canRevert }: PageCop
           <div className="space-y-1">
             <h3 className="text-sm font-semibold">Suggested change</h3>
             <p className="text-sm text-muted-foreground">{copilot.suggestion.message}</p>
+            <p className="text-xs text-muted-foreground">
+              {selectedOperationIds.size} of {proposalItems.length} changes selected
+            </p>
           </div>
           <ul className="space-y-1 text-sm">
-            {copilot.suggestion.operations.map((operation, index) => (
-              <li key={`${operation.type}-${index}`} className="rounded-md bg-muted px-2 py-1 font-mono text-xs">
-                {operation.type}
+            {proposalItems.map((item) => (
+              <li key={item.operationId} className="rounded-md bg-muted px-2 py-1 text-xs">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={selectedOperationIds.has(item.operationId)}
+                    onChange={() => handleToggleOperation(item.operationId)}
+                  />
+                  <span>{item.label}</span>
+                </label>
               </li>
             ))}
           </ul>
@@ -116,8 +160,9 @@ export function PageCopilotPanel({ page, onApply, onRevert, canRevert }: PageCop
             type="button"
             className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
             onClick={handleApply}
+            disabled={selectedOperationIds.size === 0}
           >
-            Apply suggestion
+            Apply selected changes
           </button>
         </div>
       ) : null}

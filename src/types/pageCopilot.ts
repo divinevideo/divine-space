@@ -22,6 +22,12 @@ export interface PageCopilotSuggestion {
   operations: PageCopilotOperation[];
 }
 
+export interface PageCopilotProposalItem {
+  operationId: string;
+  label: string;
+  operation: PageCopilotOperation;
+}
+
 export interface PageCopilotMessage {
   id: string;
   role: 'user' | 'assistant';
