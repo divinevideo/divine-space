@@ -23,6 +23,9 @@ const {
   toast: vi.fn(),
   usePageHistoryMock: vi.fn(),
 }));
+const isMobileState = vi.hoisted(() => ({
+  current: false,
+}));
 const revisions: { current: PageRevision[] } = {
   current: [],
 };
@@ -48,6 +51,42 @@ vi.mock('@/components/Layout', () => ({
   Layout: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="layout">{children}</div>
   ),
+}));
+
+vi.mock('@/components/ui/drawer', () => ({
+  Drawer: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="drawer-surface">{children}</div>
+  ),
+  DrawerContent: ({
+    children,
+    ...props
+  }: {
+    children: React.ReactNode;
+    ['data-testid']?: string;
+  }) => (
+    <div data-testid={props['data-testid'] ?? 'drawer-content'}>{children}</div>
+  ),
+  DrawerHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  DrawerTitle: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  DrawerDescription: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+}));
+
+vi.mock('@/components/ui/sheet', () => ({
+  Sheet: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="sheet-surface">{children}</div>
+  ),
+  SheetContent: ({
+    children,
+    ...props
+  }: {
+    children: React.ReactNode;
+    ['data-testid']?: string;
+  }) => (
+    <div data-testid={props['data-testid'] ?? 'sheet-content'}>{children}</div>
+  ),
+  SheetHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  SheetTitle: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  SheetDescription: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
 vi.mock('react-router-dom', async () => {
@@ -81,6 +120,10 @@ vi.mock('@/contexts/KeycastContext', () => ({
     pubkey: 'a'.repeat(64),
     isAuthenticated: true,
   })),
+}));
+
+vi.mock('@/hooks/useIsMobile', () => ({
+  useIsMobile: vi.fn(() => isMobileState.current),
 }));
 
 vi.mock('@/hooks/usePageDocument', () => ({
@@ -152,6 +195,10 @@ vi.mock('@/components/BentoGridEditor', () => ({
           key={widget.id}
           type="button"
           data-testid={`widget-${widget.id}`}
+          data-x={widget.x}
+          data-y={widget.y}
+          data-w={widget.w}
+          data-h={widget.h}
           data-selected={selectedWidgetId === widget.id ? 'yes' : 'no'}
           onClick={() => onSelectWidget?.(widget.id)}
         >
@@ -221,6 +268,7 @@ vi.mock('@/components/page/PageRevisionHistory', () => ({
 describe('PageStudio', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    isMobileState.current = false;
     usePageHistoryMock.mockImplementation(() => ({
       revisions: revisions.current,
       createRevision: {
@@ -458,6 +506,139 @@ describe('PageStudio', () => {
     await waitFor(() => {
       expect(screen.queryByTestId('page-studio-inspector')).not.toBeInTheDocument();
     });
+  });
+
+  it('updates the editor route state when inspector layout fields change', async () => {
+    draftPage.current = {
+      identifier: 'profile-draft',
+      shell: { type: 'sidebar-bento' },
+      includes: [],
+      widgets: [
+        { id: 'profile-1', type: 'profile', x: 1, y: 2, w: 2, h: 2 },
+      ],
+      title: 'My Page',
+      summary: 'Draft page preview',
+    };
+
+    render(
+      <TestApp>
+        <PageStudio />
+      </TestApp>
+    );
+
+    fireEvent.click(await screen.findByTestId('widget-profile-1'));
+
+    const inspector = await screen.findByTestId('page-studio-inspector');
+    fireEvent.change(within(inspector).getAllByRole('spinbutton')[0], {
+      target: { value: '2' },
+    });
+
+    expect(screen.getByTestId('widget-profile-1')).toHaveAttribute('data-x', '2');
+    expect(screen.getByTestId('widget-profile-1')).toHaveAttribute('data-y', '2');
+    expect(screen.getByTestId('widget-profile-1')).toHaveAttribute('data-w', '2');
+  });
+
+  it('clamps inspector geometry before saving draft', async () => {
+    draftPage.current = {
+      identifier: 'profile-draft',
+      shell: { type: 'sidebar-bento' },
+      includes: [],
+      widgets: [
+        { id: 'profile-1', type: 'profile', x: 1, y: 2, w: 2, h: 2 },
+      ],
+      title: 'My Page',
+      summary: 'Draft page preview',
+    };
+
+    render(
+      <TestApp>
+        <PageStudio />
+      </TestApp>
+    );
+
+    fireEvent.click(await screen.findByTestId('widget-profile-1'));
+
+    const inspector = await screen.findByTestId('page-studio-inspector');
+    fireEvent.change(within(inspector).getAllByRole('spinbutton')[1], {
+      target: { value: '-5' },
+    });
+    fireEvent.change(within(inspector).getAllByRole('spinbutton')[2], {
+      target: { value: '99' },
+    });
+
+    expect(screen.getByTestId('widget-profile-1')).toHaveAttribute('data-y', '0');
+    expect(screen.getByTestId('widget-profile-1')).toHaveAttribute('data-w', '4');
+    expect(screen.getByTestId('widget-profile-1')).toHaveAttribute('data-x', '0');
+
+    fireEvent.click(screen.getByRole('button', { name: /save draft/i }));
+
+    await waitFor(() => {
+      expect(updateDraft).toHaveBeenCalledWith(
+        expect.objectContaining({
+          widgets: [
+            expect.objectContaining({
+              id: 'profile-1',
+              x: 0,
+              y: 0,
+              w: 4,
+              h: 2,
+            }),
+          ],
+        })
+      );
+    });
+  });
+
+  it('renders the desktop inspector surface when not mobile', async () => {
+    isMobileState.current = false;
+
+    draftPage.current = {
+      identifier: 'profile-draft',
+      shell: { type: 'sidebar-bento' },
+      includes: [],
+      widgets: [
+        { id: 'profile-1', type: 'profile', x: 0, y: 0, w: 2, h: 2 },
+      ],
+      title: 'My Page',
+      summary: 'Draft page preview',
+    };
+
+    render(
+      <TestApp>
+        <PageStudio />
+      </TestApp>
+    );
+
+    fireEvent.click(await screen.findByTestId('widget-profile-1'));
+
+    expect(await screen.findByTestId('sheet-surface')).toBeInTheDocument();
+    expect(screen.queryByTestId('drawer-surface')).not.toBeInTheDocument();
+  });
+
+  it('renders the mobile inspector surface when mobile', async () => {
+    isMobileState.current = true;
+
+    draftPage.current = {
+      identifier: 'profile-draft',
+      shell: { type: 'sidebar-bento' },
+      includes: [],
+      widgets: [
+        { id: 'profile-1', type: 'profile', x: 0, y: 0, w: 2, h: 2 },
+      ],
+      title: 'My Page',
+      summary: 'Draft page preview',
+    };
+
+    render(
+      <TestApp>
+        <PageStudio />
+      </TestApp>
+    );
+
+    fireEvent.click(await screen.findByTestId('widget-profile-1'));
+
+    expect(await screen.findByTestId('drawer-surface')).toBeInTheDocument();
+    expect(screen.queryByTestId('sheet-surface')).not.toBeInTheDocument();
   });
 
   it('removes the selected widget from the inspector and closes the surface', async () => {

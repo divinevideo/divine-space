@@ -13,7 +13,10 @@ interface PageStudioInspectorProps {
   widget: Widget;
   onClose: () => void;
   onRemoveWidget: (widgetId: string) => void;
-  onUpdateWidget: (widgetId: string, nextWidget: Partial<Widget>) => void;
+  onUpdateWidget: (
+    widgetId: string,
+    nextWidget: Partial<Pick<Widget, 'x' | 'y' | 'w' | 'h'>>
+  ) => void;
 }
 
 function NumberField({

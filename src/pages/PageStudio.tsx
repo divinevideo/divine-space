@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/useToast';
 import { useUpdateSiteConfig } from '@/hooks/useSiteConfig';
 import { usePageHistory } from '@/hooks/usePageHistory';
 import { createSidebarBentoLayout } from '@/lib/sidebarBentoLayout';
+import { getMaxSize, getMinSize } from '@/lib/widgetRegistry';
 import type { PageDocument } from '@/types/page';
 import type { SiteConfigInput } from '@/types/site';
 import type { BentoLayout, Widget, WidgetType } from '@/types/widgets';
@@ -38,6 +39,27 @@ function pageDocumentToSiteConfigInput(page: PageDocument): SiteConfigInput {
 
 function serializePageDocument(page: PageDocument | null): string {
   return JSON.stringify(page ?? null);
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function sanitizeWidgetLayoutUpdate(
+  widget: Widget,
+  nextLayout: Partial<Pick<Widget, 'x' | 'y' | 'w' | 'h'>>,
+  gridCols: number
+): Pick<Widget, 'x' | 'y' | 'w' | 'h'> {
+  const minSize = getMinSize(widget.type);
+  const maxSize = getMaxSize(widget.type);
+  const nextW = nextLayout.w ?? widget.w;
+  const nextH = nextLayout.h ?? widget.h;
+  const w = clamp(nextW, minSize.w, maxSize.w);
+  const h = clamp(nextH, minSize.h, maxSize.h);
+  const x = clamp(nextLayout.x ?? widget.x, 0, Math.max(0, gridCols - w));
+  const y = Math.max(0, nextLayout.y ?? widget.y);
+
+  return { x, y, w, h };
 }
 
 export default function PageStudio() {
@@ -131,17 +153,24 @@ export default function PageStudio() {
     setSelectedWidgetId(null);
   };
 
-  const updateWidget = (widgetId: string, nextWidget: Partial<Widget>) => {
+  const updateWidget = (
+    widgetId: string,
+    nextLayout: Partial<Pick<Widget, 'x' | 'y' | 'w' | 'h'>>
+  ) => {
     setDraftPage((currentPage) => {
       if (!currentPage) {
         return currentPage;
       }
 
+      const gridCols = currentPage.gridCols ?? 4;
+
       return {
         ...currentPage,
         layout: 'bento',
         widgets: currentPage.widgets.map((widget) => (
-          widget.id === widgetId ? { ...widget, ...nextWidget } : widget
+          widget.id === widgetId
+            ? { ...widget, ...sanitizeWidgetLayoutUpdate(widget, nextLayout, gridCols) }
+            : widget
         )),
       };
     });
