@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { TestApp } from '@/test/TestApp';
 import type { PageDocument } from '@/types/page';
+import type { PageCopilotSuggestion } from '@/types/pageCopilot';
 import Settings from './Settings';
 import MySpaceSettings from './MySpaceSettings';
 import PageStudio from './PageStudio';
@@ -9,6 +10,13 @@ import PageStudio from './PageStudio';
 const ensureStarterDraft = vi.fn();
 const publishDraft = vi.fn();
 const updateDraft = vi.fn();
+const aiSuggestion: PageCopilotSuggestion = {
+  message: 'AI refresh',
+  operations: [
+    { type: 'set_page_title', title: 'AI Creator Home' },
+    { type: 'add_widget', widgetType: 'text' },
+  ],
+};
 const draftPage: { current: PageDocument | null } = {
   current: {
     identifier: 'profile-draft',
@@ -108,6 +116,27 @@ vi.mock('@/components/BentoGridEditor', () => ({
   ),
 }));
 
+vi.mock('@/components/page/PageCopilotPanel', () => ({
+  PageCopilotPanel: ({
+    onApply,
+    onRevert,
+    canRevert,
+  }: {
+    onApply: (suggestion: PageCopilotSuggestion) => void;
+    onRevert: () => void;
+    canRevert: boolean;
+  }) => (
+    <div data-testid="page-copilot-panel" data-can-revert={canRevert ? 'yes' : 'no'}>
+      <button type="button" onClick={() => onApply(aiSuggestion)}>
+        Apply AI suggestion
+      </button>
+      <button type="button" onClick={onRevert} disabled={!canRevert}>
+        Revert AI suggestion
+      </button>
+    </div>
+  ),
+}));
+
 describe('PageStudio', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -169,6 +198,7 @@ describe('PageStudio', () => {
     expect(screen.getByRole('button', { name: /save draft/i })).toBeInTheDocument();
     expect(screen.getByTestId('bento-grid-editor')).toBeInTheDocument();
     expect(screen.getByTestId('bento-grid')).toBeInTheDocument();
+    expect(screen.getByTestId('page-copilot-panel')).toBeInTheDocument();
   });
 
   it('saves draft edits before publishing', async () => {
@@ -183,6 +213,73 @@ describe('PageStudio', () => {
 
     await waitFor(() => {
       expect(updateDraft).toHaveBeenCalled();
+      expect(publishDraft).toHaveBeenCalled();
+    });
+  });
+
+  it('applies and reverts AI draft changes', async () => {
+    render(
+      <TestApp>
+        <PageStudio />
+      </TestApp>
+    );
+
+    expect(screen.getAllByText('My Page').length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByRole('button', { name: /apply ai suggestion/i }));
+
+    await waitFor(() => {
+      expect(screen.getAllByText('AI Creator Home').length).toBeGreaterThan(0);
+    });
+    expect(screen.getByTestId('page-copilot-panel')).toHaveAttribute('data-can-revert', 'yes');
+
+    fireEvent.click(screen.getByRole('button', { name: /revert ai suggestion/i }));
+
+    await waitFor(() => {
+      expect(screen.getAllByText('My Page').length).toBeGreaterThan(0);
+    });
+    expect(screen.getByTestId('page-copilot-panel')).toHaveAttribute('data-can-revert', 'no');
+  });
+
+  it('disables AI revert after a later manual edit', async () => {
+    render(
+      <TestApp>
+        <PageStudio />
+      </TestApp>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /apply ai suggestion/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('page-copilot-panel')).toHaveAttribute('data-can-revert', 'yes');
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /simulate editor change/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('page-copilot-panel')).toHaveAttribute('data-can-revert', 'no');
+    });
+  });
+
+  it('saves AI draft edits before publishing', async () => {
+    render(
+      <TestApp>
+        <PageStudio />
+      </TestApp>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /apply ai suggestion/i }));
+    fireEvent.click(screen.getByRole('button', { name: /publish/i }));
+
+    await waitFor(() => {
+      expect(updateDraft).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'AI Creator Home',
+          widgets: expect.arrayContaining([
+            expect.objectContaining({ type: 'text' }),
+          ]),
+        })
+      );
       expect(publishDraft).toHaveBeenCalled();
     });
   });

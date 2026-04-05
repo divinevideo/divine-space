@@ -2,12 +2,15 @@ import { useEffect, useRef, useState } from 'react';
 import { useSeoMeta } from '@unhead/react';
 import { BentoGridEditor } from '@/components/BentoGridEditor';
 import { Layout } from '@/components/Layout';
+import { PageCopilotPanel } from '@/components/page/PageCopilotPanel';
 import { PageStudioShell } from '@/components/page/PageStudioShell';
 import { PagePreview } from '@/components/page/PagePreview';
 import { useAuth } from '@/hooks/useAuth';
 import { useUpdateSiteConfig } from '@/hooks/useSiteConfig';
+import { applyPageCopilotSuggestion } from '@/lib/pageCopilot';
 import { createSidebarBentoLayout } from '@/lib/sidebarBentoLayout';
 import type { PageDocument } from '@/types/page';
+import type { PageCopilotSuggestion } from '@/types/pageCopilot';
 import type { SiteConfigInput } from '@/types/site';
 import type { BentoLayout } from '@/types/widgets';
 import {
@@ -32,6 +35,10 @@ function pageDocumentToSiteConfigInput(page: PageDocument): SiteConfigInput {
   };
 }
 
+function serializePageDocument(page: PageDocument | null): string {
+  return JSON.stringify(page ?? null);
+}
+
 export default function PageStudio() {
   const { pubkey } = useAuth();
   const draftQuery = useDraftPageDocument(pubkey);
@@ -40,7 +47,8 @@ export default function PageStudio() {
   const saveDraft = useUpdateSiteConfig('profile-draft');
   const bootstrappedPubkey = useRef<string | undefined>(undefined);
   const [draftPage, setDraftPage] = useState<PageDocument | null>(null);
-  const [hasDraftChanges, setHasDraftChanges] = useState(false);
+  const [savedDraftSnapshot, setSavedDraftSnapshot] = useState<PageDocument | null>(null);
+  const [lastAiSnapshot, setLastAiSnapshot] = useState<PageDocument | null>(null);
 
   useSeoMeta({
     title: 'Page Studio - DiVine Space',
@@ -64,10 +72,12 @@ export default function PageStudio() {
     }
 
     setDraftPage(draftQuery.data);
-    setHasDraftChanges(false);
+    setSavedDraftSnapshot(draftQuery.data);
+    setLastAiSnapshot(null);
   }, [draftQuery.data]);
 
   const workingDraft = draftPage ?? draftQuery.data ?? null;
+  const hasDraftChanges = serializePageDocument(workingDraft) !== serializePageDocument(savedDraftSnapshot);
 
   const handleEditorChange = (layout: BentoLayout) => {
     setDraftPage((currentPage) => {
@@ -82,7 +92,25 @@ export default function PageStudio() {
         widgets: layout.widgets,
       };
     });
-    setHasDraftChanges(true);
+    setLastAiSnapshot(null);
+  };
+
+  const handleApplySuggestion = (suggestion: PageCopilotSuggestion) => {
+    if (!workingDraft) {
+      return;
+    }
+
+    setLastAiSnapshot(workingDraft);
+    setDraftPage(applyPageCopilotSuggestion(workingDraft, suggestion));
+  };
+
+  const handleRevertAiChange = () => {
+    if (!lastAiSnapshot) {
+      return;
+    }
+
+    setDraftPage(lastAiSnapshot);
+    setLastAiSnapshot(null);
   };
 
   const handleSaveDraft = async () => {
@@ -91,7 +119,7 @@ export default function PageStudio() {
     }
 
     await saveDraft.mutateAsync(pageDocumentToSiteConfigInput(workingDraft));
-    setHasDraftChanges(false);
+    setSavedDraftSnapshot(workingDraft);
   };
 
   const handlePublish = async () => {
@@ -123,7 +151,7 @@ export default function PageStudio() {
         }}
         isPublishing={publishDraft.isPending}
       >
-        <div className="grid gap-6 xl:grid-cols-2">
+        <div className="grid gap-6 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_360px]">
           <section className="space-y-3">
             <div>
               <h2 className="text-lg font-semibold tracking-tight">Edit Draft</h2>
@@ -148,6 +176,21 @@ export default function PageStudio() {
               </p>
             </div>
             <PagePreview page={workingDraft} pubkey={pubkey} />
+          </section>
+
+          <section className="space-y-3 2xl:self-start">
+            <div>
+              <h2 className="text-lg font-semibold tracking-tight">Copilot</h2>
+              <p className="text-sm text-muted-foreground">
+                Generate structured draft changes, inspect them, then apply them to your page.
+              </p>
+            </div>
+            <PageCopilotPanel
+              page={workingDraft}
+              onApply={handleApplySuggestion}
+              onRevert={handleRevertAiChange}
+              canRevert={!!lastAiSnapshot}
+            />
           </section>
         </div>
       </PageStudioShell>
