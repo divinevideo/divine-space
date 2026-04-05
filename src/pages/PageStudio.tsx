@@ -3,6 +3,7 @@ import { useSeoMeta } from '@unhead/react';
 import { BentoGridEditor } from '@/components/BentoGridEditor';
 import { Layout } from '@/components/Layout';
 import { PageStudioAddWidgetMenu } from '@/components/page/PageStudioAddWidgetMenu';
+import { PageStudioInspector } from '@/components/page/PageStudioInspector';
 import { PageStudioShell } from '@/components/page/PageStudioShell';
 import { useAuth } from '@/hooks/useAuth';
 import { appendWidgetToLayout } from '@/lib/pageStudioWidgets';
@@ -12,7 +13,7 @@ import { usePageHistory } from '@/hooks/usePageHistory';
 import { createSidebarBentoLayout } from '@/lib/sidebarBentoLayout';
 import type { PageDocument } from '@/types/page';
 import type { SiteConfigInput } from '@/types/site';
-import type { BentoLayout, WidgetType } from '@/types/widgets';
+import type { BentoLayout, Widget, WidgetType } from '@/types/widgets';
 import {
   useDraftPageDocument,
   useEnsureStarterDraft,
@@ -48,6 +49,7 @@ export default function PageStudio() {
   const bootstrappedPubkey = useRef<string | undefined>(undefined);
   const [draftPage, setDraftPage] = useState<PageDocument | null>(null);
   const [savedDraftSnapshot, setSavedDraftSnapshot] = useState<PageDocument | null>(null);
+  const [selectedWidgetId, setSelectedWidgetId] = useState<string | null>(null);
   const pageIdentifier = draftPage?.identifier ?? draftQuery.data?.identifier ?? 'profile-draft';
   const saveDraft = useUpdateSiteConfig(pageIdentifier);
   const revisionHistory = usePageHistory(pageIdentifier);
@@ -78,6 +80,18 @@ export default function PageStudio() {
   }, [draftQuery.data]);
 
   const workingDraft = draftPage ?? draftQuery.data ?? null;
+
+  useEffect(() => {
+    if (!selectedWidgetId) {
+      return;
+    }
+
+    if (!workingDraft?.widgets.some((widget) => widget.id === selectedWidgetId)) {
+      setSelectedWidgetId(null);
+    }
+  }, [selectedWidgetId, workingDraft?.widgets]);
+
+  const selectedWidget = workingDraft?.widgets.find((widget) => widget.id === selectedWidgetId) ?? null;
   const hasDraftChanges = serializePageDocument(workingDraft) !== serializePageDocument(savedDraftSnapshot);
 
   const handleEditorChange = (layout: BentoLayout) => {
@@ -107,6 +121,48 @@ export default function PageStudio() {
         widgets: appendWidgetToLayout(currentPage.widgets, type),
       };
     });
+  };
+
+  const handleSelectWidget = (widgetId: string) => {
+    setSelectedWidgetId(widgetId);
+  };
+
+  const handleCloseInspector = () => {
+    setSelectedWidgetId(null);
+  };
+
+  const updateWidget = (widgetId: string, nextWidget: Partial<Widget>) => {
+    setDraftPage((currentPage) => {
+      if (!currentPage) {
+        return currentPage;
+      }
+
+      return {
+        ...currentPage,
+        layout: 'bento',
+        widgets: currentPage.widgets.map((widget) => (
+          widget.id === widgetId ? { ...widget, ...nextWidget } : widget
+        )),
+      };
+    });
+  };
+
+  const removeWidget = (widgetId: string) => {
+    setDraftPage((currentPage) => {
+      if (!currentPage) {
+        return currentPage;
+      }
+
+      return {
+        ...currentPage,
+        layout: 'bento',
+        widgets: currentPage.widgets.filter((widget) => widget.id !== widgetId),
+      };
+    });
+
+    if (selectedWidgetId === widgetId) {
+      setSelectedWidgetId(null);
+    }
   };
 
   const handleSaveDraft = async () => {
@@ -186,9 +242,19 @@ export default function PageStudio() {
             layout={editorLayout}
             pubkey={pubkey ?? ''}
             onChange={handleEditorChange}
+            selectedWidgetId={selectedWidgetId ?? undefined}
+            onSelectWidget={handleSelectWidget}
           />
         ) : null}
       </PageStudioShell>
+      {selectedWidget ? (
+        <PageStudioInspector
+          widget={selectedWidget}
+          onClose={handleCloseInspector}
+          onRemoveWidget={removeWidget}
+          onUpdateWidget={updateWidget}
+        />
+      ) : null}
     </Layout>
   );
 }

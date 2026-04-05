@@ -126,6 +126,8 @@ vi.mock('@/components/BentoGridEditor', () => ({
   BentoGridEditor: ({
     layout,
     onChange,
+    selectedWidgetId,
+    onSelectWidget,
   }: {
     layout: {
       type: 'bento';
@@ -139,10 +141,23 @@ vi.mock('@/components/BentoGridEditor', () => ({
       rowHeight: number;
       widgets: Array<{ id: string; type: 'profile'; x: number; y: number; w: number; h: number }>;
     }) => void;
+    selectedWidgetId?: string;
+    onSelectWidget?: (widgetId: string) => void;
   }) => (
     <div data-testid="bento-grid-editor" data-widget-count={layout.widgets.length}>
       <div data-testid="editor-widget-count">{layout.widgets.length}</div>
       <div data-testid="editor-widget-ids">{layout.widgets.map((widget) => widget.id).join(',')}</div>
+      {layout.widgets.map((widget) => (
+        <button
+          key={widget.id}
+          type="button"
+          data-testid={`widget-${widget.id}`}
+          data-selected={selectedWidgetId === widget.id ? 'yes' : 'no'}
+          onClick={() => onSelectWidget?.(widget.id)}
+        >
+          {widget.type} widget
+        </button>
+      ))}
       <button
         type="button"
         onClick={() => onChange({
@@ -412,5 +427,63 @@ describe('PageStudio', () => {
 
     expect(await screen.findByTestId('editor-widget-count')).toHaveTextContent('1');
     expect(screen.getByTestId('editor-widget-ids')).toHaveTextContent(/profile-/);
+  });
+
+  it('opens the temporary inspector when a widget is selected and closes it on dismiss', async () => {
+    draftPage.current = {
+      identifier: 'profile-draft',
+      shell: { type: 'sidebar-bento' },
+      includes: [],
+      widgets: [
+        { id: 'profile-1', type: 'profile', x: 0, y: 0, w: 2, h: 2 },
+      ],
+      title: 'My Page',
+      summary: 'Draft page preview',
+    };
+
+    render(
+      <TestApp>
+        <PageStudio />
+      </TestApp>
+    );
+
+    fireEvent.click(await screen.findByTestId('widget-profile-1'));
+
+    const inspector = await screen.findByTestId('page-studio-inspector');
+    expect(inspector).toBeInTheDocument();
+    expect(within(inspector).getByText(/profile widget/i)).toBeVisible();
+
+    fireEvent.click(screen.getByRole('button', { name: /close inspector/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('page-studio-inspector')).not.toBeInTheDocument();
+    });
+  });
+
+  it('removes the selected widget from the inspector and closes the surface', async () => {
+    draftPage.current = {
+      identifier: 'profile-draft',
+      shell: { type: 'sidebar-bento' },
+      includes: [],
+      widgets: [
+        { id: 'profile-1', type: 'profile', x: 0, y: 0, w: 2, h: 2 },
+      ],
+      title: 'My Page',
+      summary: 'Draft page preview',
+    };
+
+    render(
+      <TestApp>
+        <PageStudio />
+      </TestApp>
+    );
+
+    fireEvent.click(await screen.findByTestId('widget-profile-1'));
+    fireEvent.click(screen.getByRole('button', { name: /remove widget/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('page-studio-inspector')).not.toBeInTheDocument();
+      expect(screen.getByTestId('editor-widget-count')).toHaveTextContent('0');
+    });
   });
 });
