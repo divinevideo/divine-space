@@ -11,6 +11,9 @@ export interface PageStudioShellProps {
   page?: PageDocument | null;
   pubkey?: string;
   children: ReactNode;
+  onSaveDraft?: () => void;
+  isSavingDraft?: boolean;
+  hasDraftChanges?: boolean;
   onPublish?: () => void;
   isPublishing?: boolean;
   className?: string;
@@ -28,6 +31,9 @@ export function PageStudioShell({
   page,
   pubkey,
   children,
+  onSaveDraft,
+  isSavingDraft = false,
+  hasDraftChanges = false,
   onPublish,
   isPublishing = false,
   className,
@@ -81,19 +87,40 @@ export function PageStudioShell({
                 </div>
 
                 {pubkey ? (
-                  <Button
-                    type="button"
-                    className="w-full gap-2"
-                    onClick={onPublish}
-                    disabled={!hasDraft || isPublishing}
-                  >
-                    {isPublishing ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <ArrowUpRight className="h-4 w-4" />
-                    )}
-                    Publish
-                  </Button>
+                  <div className="space-y-2">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="w-full gap-2"
+                      onClick={onSaveDraft}
+                      disabled={!hasDraft || !hasDraftChanges || isSavingDraft || isPublishing}
+                    >
+                      {isSavingDraft ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Pencil className="h-4 w-4" />
+                      )}
+                      Save Draft
+                    </Button>
+
+                    <Button
+                      type="button"
+                      className="w-full gap-2"
+                      onClick={onPublish}
+                      disabled={!hasDraft || isPublishing || isSavingDraft}
+                    >
+                      {isPublishing ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <ArrowUpRight className="h-4 w-4" />
+                      )}
+                      Publish
+                    </Button>
+
+                    <p className="text-xs text-muted-foreground">
+                      {hasDraftChanges ? 'Draft has unpublished changes.' : 'Draft is up to date.'}
+                    </p>
+                  </div>
                 ) : (
                   <LoginArea className="w-full" />
                 )}

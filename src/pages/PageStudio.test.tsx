@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { TestApp } from '@/test/TestApp';
 import type { PageDocument } from '@/types/page';
 import Settings from './Settings';
@@ -8,6 +8,7 @@ import PageStudio from './PageStudio';
 
 const ensureStarterDraft = vi.fn();
 const publishDraft = vi.fn();
+const updateDraft = vi.fn();
 const draftPage: { current: PageDocument | null } = {
   current: {
     identifier: 'profile-draft',
@@ -80,6 +81,33 @@ vi.mock('@/hooks/usePageDocument', () => ({
   })),
 }));
 
+vi.mock('@/hooks/useSiteConfig', () => ({
+  useUpdateSiteConfig: vi.fn(() => ({
+    mutateAsync: updateDraft,
+    isPending: false,
+  })),
+}));
+
+vi.mock('@/components/BentoGridEditor', () => ({
+  BentoGridEditor: ({ onChange }: { onChange: (layout: { type: 'bento'; gridCols: number; rowHeight: number; widgets: Array<{ id: string; type: 'profile'; x: number; y: number; w: number; h: number }> }) => void }) => (
+    <div data-testid="bento-grid-editor">
+      <button
+        type="button"
+        onClick={() => onChange({
+          type: 'bento',
+          gridCols: 4,
+          rowHeight: 150,
+          widgets: [
+            { id: 'profile-1', type: 'profile', x: 1, y: 0, w: 2, h: 2 },
+          ],
+        })}
+      >
+        Simulate editor change
+      </button>
+    </div>
+  ),
+}));
+
 describe('PageStudio', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -138,7 +166,25 @@ describe('PageStudio', () => {
     );
 
     expect(await screen.findByRole('button', { name: /publish/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /save draft/i })).toBeInTheDocument();
+    expect(screen.getByTestId('bento-grid-editor')).toBeInTheDocument();
     expect(screen.getByTestId('bento-grid')).toBeInTheDocument();
+  });
+
+  it('saves draft edits before publishing', async () => {
+    render(
+      <TestApp>
+        <PageStudio />
+      </TestApp>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /simulate editor change/i }));
+    fireEvent.click(screen.getByRole('button', { name: /publish/i }));
+
+    await waitFor(() => {
+      expect(updateDraft).toHaveBeenCalled();
+      expect(publishDraft).toHaveBeenCalled();
+    });
   });
 
   it('redirects authenticated profile settings to the studio', () => {
