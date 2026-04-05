@@ -8,7 +8,6 @@ import {
   useUpdateMySpaceProfile,
   useAddTopFriend,
   useRemoveTopFriend,
-  useReorderTopFriends,
   MYSPACE_THEMES,
   type MySpaceProfileData,
   type ThemeId
@@ -36,12 +35,9 @@ import {
   Loader2,
   X,
   Plus,
-  GripVertical,
   Crown,
   Quote,
   Smile,
-  MessageSquare,
-  Image,
   Upload,
   Search,
   ExternalLink,
@@ -68,7 +64,6 @@ import {
 export default function MySpaceSettings() {
   const { pubkey: keycastPubkey, isAuthenticated: keycastAuth } = useKeycast();
   const { currentUser } = useLoggedInAccounts();
-  const { toast } = useToast();
 
   // Support both Keycast and standard Nostr login
   const isAuthenticated = keycastAuth || !!currentUser;
@@ -671,7 +666,7 @@ function SearchAddFriend({ onAdd, disabled, excludePubkeys }: {
           setSearchResults(results);
         }
       }
-    } catch (error) {
+    } catch {
       toast({
         title: 'Search failed',
         description: 'Could not search for users',
@@ -1078,7 +1073,6 @@ interface WavlakeTrack {
 function DomainSettingsTab({ pubkey }: { pubkey: string }) {
   const { toast } = useToast();
   const [name, setName] = useState('');
-  const [isValidating, setIsValidating] = useState(false);
 
   // Check if user already has a registered name
   const { data: existingName, isLoading: loadingExisting } = useLookupPubkey(pubkey);
