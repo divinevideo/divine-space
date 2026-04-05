@@ -38,6 +38,20 @@ describe('isPageCopilotOperation', () => {
     expect(isPageCopilotOperation({ type: 'set_page_title', title: 'Creator page' })).toBe(true);
   });
 
+  it('rejects add_widget operations with unsupported widget types', () => {
+    expect(isPageCopilotOperation({ type: 'add_widget', widgetType: 'quote' })).toBe(false);
+  });
+
+  it('rejects update_widget operations with unsupported update keys', () => {
+    expect(
+      isPageCopilotOperation({
+        type: 'update_widget',
+        widgetId: 'profile-1',
+        updates: { type: 'links' },
+      })
+    ).toBe(false);
+  });
+
   it('rejects an unsupported operation', () => {
     expect(isPageCopilotOperation({ type: 'launch_missiles' })).toBe(false);
   });
@@ -62,5 +76,16 @@ describe('pageCopilot helpers', () => {
 
   it('throws on malformed AI payload', () => {
     expect(() => parsePageCopilotSuggestion('not json')).toThrow(/invalid/i);
+  });
+
+  it('rejects add_widget operations with unsupported widget types', () => {
+    expect(() =>
+      parsePageCopilotSuggestion(
+        JSON.stringify({
+          message: 'Bad widget',
+          operations: [{ type: 'add_widget', widgetType: 'quote' }],
+        })
+      )
+    ).toThrow(/invalid/i);
   });
 });

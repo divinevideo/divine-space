@@ -1,4 +1,4 @@
-import { createWidget } from '@/types/widgets';
+import { createWidget, isWidgetType } from '@/types/widgets';
 import type { PageDocument } from '@/types/page';
 import type {
   PageCopilotOperation,
@@ -26,6 +26,29 @@ function isPosition(value: unknown): value is { x: number; y: number } {
   );
 }
 
+function isWidgetUpdates(
+  value: unknown
+): value is Partial<Record<'x' | 'y' | 'w' | 'h' | 'config', unknown>> {
+  if (!isObject(value)) {
+    return false;
+  }
+
+  const allowedKeys = new Set(['x', 'y', 'w', 'h', 'config']);
+  const keys = Object.keys(value);
+
+  if (keys.length === 0 || keys.some((key) => !allowedKeys.has(key))) {
+    return false;
+  }
+
+  if ('x' in value && typeof value.x !== 'number') return false;
+  if ('y' in value && typeof value.y !== 'number') return false;
+  if ('w' in value && typeof value.w !== 'number') return false;
+  if ('h' in value && typeof value.h !== 'number') return false;
+  if ('config' in value && value.config !== undefined && !isObject(value.config)) return false;
+
+  return true;
+}
+
 export function isPageCopilotOperation(value: unknown): value is PageCopilotOperation {
   if (!isObject(value) || typeof value.type !== 'string') {
     return false;
@@ -39,6 +62,7 @@ export function isPageCopilotOperation(value: unknown): value is PageCopilotOper
     case 'add_widget':
       return (
         typeof value.widgetType === 'string' &&
+        isWidgetType(value.widgetType) &&
         (!('position' in value) || value.position === undefined || isPosition(value.position)) &&
         (!('size' in value) || value.size === undefined || isSize(value.size)) &&
         (!('config' in value) || value.config === undefined || isObject(value.config))
@@ -46,12 +70,7 @@ export function isPageCopilotOperation(value: unknown): value is PageCopilotOper
     case 'update_widget':
       return (
         typeof value.widgetId === 'string' &&
-        isObject(value.updates ?? {}) &&
-        (
-          value.updates === undefined ||
-          value.updates === null ||
-          typeof value.updates === 'object'
-        )
+        isWidgetUpdates(value.updates)
       );
     case 'remove_widget':
       return typeof value.widgetId === 'string';
