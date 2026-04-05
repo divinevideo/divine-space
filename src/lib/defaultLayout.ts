@@ -355,3 +355,11 @@ export function createBentoLayout(
     widgets,
   };
 }
+
+export {
+  sidebarBentoDefaultWidgets,
+  sidebarBentoDefaultLayout,
+  cloneSidebarBentoWidgets,
+  createSidebarBentoWidgets,
+  createSidebarBentoLayout,
+} from './sidebarBentoLayout';
