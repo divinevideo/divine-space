@@ -60,6 +60,7 @@ This plan intentionally excludes:
 
 **Files:**
 - Create: `src/types/pageCopilot.ts`
+- Create: `src/lib/pageCopilot.ts`
 - Test: `src/lib/pageCopilot.test.ts`
 
 - [ ] **Step 1: Write the failing type-driven tests for supported AI operations**
@@ -84,7 +85,7 @@ describe('isPageCopilotOperation', () => {
 Run: `npx vitest run src/lib/pageCopilot.test.ts`
 Expected: FAIL with missing copilot types/helpers.
 
-- [ ] **Step 3: Add the copilot operation and payload types**
+- [ ] **Step 3: Add the copilot operation and payload types plus the minimal operation guard**
 
 ```ts
 export type PageCopilotOperation =
@@ -104,6 +105,10 @@ export interface PageCopilotMessage {
   role: 'user' | 'assistant';
   content: string;
 }
+
+export function isPageCopilotOperation(value: unknown): value is PageCopilotOperation {
+  // narrow by object shape and supported type names
+}
 ```
 
 - [ ] **Step 4: Re-run the test to verify it passes**
@@ -115,13 +120,14 @@ Expected: PASS for operation guards.
 
 ```bash
 git add src/types/pageCopilot.ts src/lib/pageCopilot.test.ts
+git add src/lib/pageCopilot.ts
 git commit -m "feat: add page copilot operation types"
 ```
 
 ### Task 2: Build prompt context, parsing, and patch application helpers
 
 **Files:**
-- Create: `src/lib/pageCopilot.ts`
+- Modify: `src/lib/pageCopilot.ts`
 - Modify: `src/lib/pageCopilot.test.ts`
 
 - [ ] **Step 1: Write failing tests for parsing and draft patch application**
@@ -202,6 +208,18 @@ it('submits the current draft context and returns a validated suggestion', async
   expect(result.current.suggestion?.operations).toHaveLength(1);
 });
 
+it('extracts JSON from Shakespeare response choices[0].message.content', async () => {
+  const { result } = renderHook(() => usePageCopilot({ page }));
+  await result.current.requestSuggestion('Add a text block');
+  expect(mockSendChatMessage).toHaveBeenCalled();
+  expect(result.current.suggestion?.message).toBe('Updated page');
+});
+
+it('rejects Shakespeare responses whose message content is not a string', async () => {
+  const { result } = renderHook(() => usePageCopilot({ page }));
+  await expect(result.current.requestSuggestion('Add a text block')).rejects.toThrow(/string/i);
+});
+
 it('surfaces malformed AI responses as errors', async () => {
   const { result } = renderHook(() => usePageCopilot({ page }));
   await expect(result.current.requestSuggestion('break it')).rejects.toThrow(/invalid/i);
@@ -222,7 +240,9 @@ export function usePageCopilot({ page }: { page: PageDocument | null }) {
   const [suggestion, setSuggestion] = useState<PageCopilotSuggestion | null>(null);
 
   const requestSuggestion = async (prompt: string) => {
-    // build system prompt + context, call Shakespeare, parse suggestion, update messages/suggestion
+    // build system prompt + context, call Shakespeare
+    // read choices[0].message.content as string and throw if it is not a string
+    // parse suggestion, update messages/suggestion
   };
 
   return { messages, suggestion, requestSuggestion, clearSuggestion, isLoading, error, clearError };
@@ -260,7 +280,9 @@ it('submits a prompt and shows the proposed operations', async () => {
 it('calls onApply when the owner accepts the suggestion', async () => {
   render(<PageCopilotPanel page={page} onApply={onApply} onRevert={onRevert} canRevert />);
   fireEvent.click(await screen.findByRole('button', { name: /apply suggestion/i }));
-  expect(onApply).toHaveBeenCalled();
+  expect(onApply).toHaveBeenCalledWith(expect.objectContaining({
+    operations: expect.any(Array),
+  }));
 });
 ```
 
@@ -276,6 +298,8 @@ export function PageCopilotPanel({ page, onApply, onRevert, canRevert }: Props) 
   const [prompt, setPrompt] = useState('');
   const copilot = usePageCopilot({ page });
   // textarea, ask button, assistant summary, operations list, apply/dismiss/revert buttons
+  // onApply receives the currently validated suggestion object
+  // dismiss clears the current suggestion only and keeps the chat history visible
 }
 ```
 
@@ -336,6 +360,10 @@ const handleRevertAi = () => {
   setLastAiSnapshot(null);
 };
 ```
+
+- [ ] **Step 3a: Enforce the MVP revert safety rule**
+
+If the owner makes any subsequent manual editor change after an AI apply, clear `lastAiSnapshot` and disable revert. Do not attempt snapshot merging in this plan.
 
 - [ ] **Step 4: Render the panel in the studio layout**
 
