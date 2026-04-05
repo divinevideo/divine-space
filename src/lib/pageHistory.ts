@@ -22,10 +22,6 @@ function clonePage(page: PageDocument): PageDocument {
   };
 }
 
-function getTagValue(tags: string[][], name: string): string | undefined {
-  return tags.find(([tagName]) => tagName === name)?.[1];
-}
-
 function isRevisionSnapshot(value: unknown): value is PageRevisionSnapshot {
   if (typeof value !== 'object' || value === null) {
     return false;
