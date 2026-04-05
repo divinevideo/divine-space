@@ -162,6 +162,7 @@ export function PageStudioInspector(props: PageStudioInspectorProps) {
 
   return (
     <Sheet
+      modal={false}
       open
       onOpenChange={(open) => {
         if (!open) {
@@ -171,6 +172,7 @@ export function PageStudioInspector(props: PageStudioInspectorProps) {
     >
       <SheetContent
         side="right"
+        showOverlay={false}
         data-testid="page-studio-inspector"
         className="w-full overflow-y-auto sm:max-w-lg"
       >

@@ -64,7 +64,9 @@ vi.mock('@/components/ui/drawer', () => ({
     children: React.ReactNode;
     ['data-testid']?: string;
   }) => (
-    <div data-testid={props['data-testid'] ?? 'drawer-content'}>{children}</div>
+    <div data-testid={props['data-testid'] ?? 'drawer-content'}>
+      {children}
+    </div>
   ),
   DrawerHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   DrawerTitle: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
@@ -72,17 +74,35 @@ vi.mock('@/components/ui/drawer', () => ({
 }));
 
 vi.mock('@/components/ui/sheet', () => ({
-  Sheet: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="sheet-surface">{children}</div>
+  Sheet: ({
+    children,
+    modal = true,
+  }: {
+    children: React.ReactNode;
+    modal?: boolean;
+  }) => (
+    <div data-testid="sheet-surface" data-modal={modal ? 'true' : 'false'}>
+      {children}
+    </div>
   ),
   SheetContent: ({
     children,
+    modal = true,
+    showOverlay = true,
     ...props
   }: {
     children: React.ReactNode;
     ['data-testid']?: string;
+    modal?: boolean;
+    showOverlay?: boolean;
   }) => (
-    <div data-testid={props['data-testid'] ?? 'sheet-content'}>{children}</div>
+    <div
+      data-testid={props['data-testid'] ?? 'sheet-content'}
+      data-modal={modal ? 'true' : 'false'}
+    >
+      {modal && showOverlay ? <div data-testid="sheet-overlay" /> : null}
+      {children}
+    </div>
   ),
   SheetHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   SheetTitle: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
@@ -612,6 +632,7 @@ describe('PageStudio', () => {
     fireEvent.click(await screen.findByTestId('widget-profile-1'));
 
     expect(await screen.findByTestId('sheet-surface')).toBeInTheDocument();
+    expect(screen.queryByTestId('sheet-overlay')).not.toBeInTheDocument();
     expect(screen.queryByTestId('drawer-surface')).not.toBeInTheDocument();
   });
 
@@ -639,6 +660,38 @@ describe('PageStudio', () => {
 
     expect(await screen.findByTestId('drawer-surface')).toBeInTheDocument();
     expect(screen.queryByTestId('sheet-surface')).not.toBeInTheDocument();
+  });
+
+  it('keeps the desktop canvas active while the inspector stays open', async () => {
+    draftPage.current = {
+      identifier: 'profile-draft',
+      shell: { type: 'sidebar-bento' },
+      includes: [],
+      widgets: [
+        { id: 'profile-1', type: 'profile', x: 0, y: 0, w: 2, h: 2 },
+        { id: 'profile-2', type: 'profile', x: 2, y: 0, w: 2, h: 2 },
+      ],
+      title: 'My Page',
+      summary: 'Draft page preview',
+    };
+
+    render(
+      <TestApp>
+        <PageStudio />
+      </TestApp>
+    );
+
+    fireEvent.click(await screen.findByTestId('widget-profile-1'));
+
+    const inspector = await screen.findByTestId('page-studio-inspector');
+    expect(within(inspector).getByText(/profile widget/i)).toBeVisible();
+    expect(screen.queryByTestId('sheet-overlay')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('widget-profile-2'));
+
+    expect(screen.getByTestId('widget-profile-1')).toHaveAttribute('data-selected', 'no');
+    expect(screen.getByTestId('widget-profile-2')).toHaveAttribute('data-selected', 'yes');
+    expect(within(screen.getByTestId('page-studio-inspector')).getByText(/profile widget/i)).toBeVisible();
   });
 
   it('removes the selected widget from the inspector and closes the surface', async () => {
