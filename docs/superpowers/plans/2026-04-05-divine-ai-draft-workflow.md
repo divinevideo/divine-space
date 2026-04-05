@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Turn the current AI copilot into a trusted draft workflow with selective apply, readable proposal UX, and durable saved revision history for page saves and publishes.
+**Goal:** Turn the current AI copilot into a trusted draft workflow with selective apply, readable proposal UX, and best-effort private revision history for page saves and publishes.
 
-**Architecture:** Build on the existing `PageStudio`, `usePageCopilot`, and `kind:30512` draft/published page flow. Add a private revision layer using NIP-37 `kind:31234` draft-wrap events plus a presentation layer that converts raw AI operations into readable, selectable proposal items before applying them to the local working draft.
+**Architecture:** Build on the existing `PageStudio`, `usePageCopilot`, and `kind:30512` draft/published page flow. Add a private revision layer using NIP-37 `kind:31234` draft-wrap events published through the current write path, then decrypt and filter them client-side by page identifier. Add a presentation layer that converts raw AI operations into readable, selectable proposal items before applying them to the local working draft.
 
 **Tech Stack:** React 18, TypeScript, TanStack Query, Vitest, Testing Library, Nostrify, existing Keycast/Nostr signers with NIP-44 support
 
@@ -16,7 +16,7 @@ This plan covers only the next AI draft workflow slice:
 
 - proposal summaries and grouped operation review
 - selective apply for AI operations
-- durable revision snapshots on save draft and publish
+- best-effort private revision snapshots on save draft and publish
 - revision restore into the local working draft
 
 This plan intentionally excludes:
@@ -38,7 +38,7 @@ This plan intentionally excludes:
 - `src/lib/pageHistory.test.ts`
   Unit tests for revision helpers
 - `src/hooks/usePageHistory.ts`
-  Query, publish, and restore durable revisions
+  Query, publish, and restore private revisions
 - `src/hooks/usePageHistory.test.tsx`
   Hook tests for revision publish/query/restore
 - `src/components/page/PageRevisionHistory.tsx`
@@ -63,7 +63,7 @@ This plan intentionally excludes:
 - `src/pages/PageStudio.test.tsx`
   Add studio tests for save/publish revision creation and restore flow
 
-## Chunk 1: Durable Revision Foundation
+## Chunk 1: Private Revision Foundation
 
 ### Task 1: Define revision types and NIP-37 helpers
 
@@ -113,8 +113,6 @@ export function buildPageRevisionTags(identifier: string, source: PageRevisionSo
     ['d', revisionId],
     ['k', '30512'],
     ['alt', 'DiVine Space page revision'],
-    ['identifier', identifier],
-    ['source', source],
   ];
 }
 ```
@@ -142,13 +140,13 @@ git commit -m "feat: add page revision helpers"
 
 ```tsx
 it('publishes a private revision snapshot encrypted to the owner', async () => {
-  const { result } = renderHook(() => useCreatePageRevision(), { wrapper });
+  const { result } = renderHook(() => usePageHistory('profile-draft'), { wrapper });
   await result.current.createRevision.mutateAsync({ page, source: 'save-draft' });
   expect(mockPublish).toHaveBeenCalledWith(expect.objectContaining({ kind: 31234 }));
 });
 
 it('queries and decrypts page revisions for the current owner', async () => {
-  const { result } = renderHook(() => usePageHistory(pubkey, 'profile-draft'), { wrapper });
+  const { result } = renderHook(() => usePageHistory('profile-draft'), { wrapper });
   await waitFor(() => expect(result.current.data).toHaveLength(1));
 });
 ```
@@ -161,18 +159,37 @@ Expected: FAIL with missing hook.
 - [ ] **Step 3: Implement the hook**
 
 ```ts
-export function useCreatePageRevision() {
+export function usePageHistory(identifier = 'profile-draft') {
   const { user } = useCurrentUser();
+  const { nostr } = useNostr();
   const { mutateAsync: publish } = useKeycastPublish();
+  const queryClient = useQueryClient();
 
-  return useMutation({
+  const revisionsQuery = useQuery({
+    queryKey: ['page-history', user?.pubkey, identifier],
+    queryFn: async () => {
+      // query kind 31234 authored by the user with #k 30512
+      // decrypt each payload, parse it, then filter by decrypted pageIdentifier
+    },
+  });
+
+  const createRevision = useMutation({
     mutationFn: async ({ page, source }) => {
       if (!user?.signer?.nip44) throw new Error('NIP-44 encryption not available');
       const snapshot = createPageRevisionSnapshot(page, source);
       const ciphertext = await user.signer.nip44.encrypt(user.pubkey, JSON.stringify(snapshot.unsignedEvent));
       return publish({ kind: 31234, content: ciphertext, tags: buildPageRevisionTags(page.identifier, source, crypto.randomUUID()) });
     },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['page-history', user?.pubkey, identifier] });
+    },
   });
+
+  return {
+    ...revisionsQuery,
+    revisions: revisionsQuery.data ?? [],
+    createRevision,
+  };
 }
 ```
 
@@ -349,10 +366,23 @@ git commit -m "feat: add page revision history panel"
 - [ ] **Step 1: Write failing studio integration tests**
 
 ```tsx
-it('creates a revision before saving the draft', async () => {
+it('attempts a revision before saving the draft', async () => {
   render(<PageStudio />);
   fireEvent.click(screen.getByRole('button', { name: /save draft/i }));
   await waitFor(() => expect(createRevision).toHaveBeenCalledWith(expect.objectContaining({ source: 'save-draft' })));
+});
+
+it('shows a warning and still saves when revision creation fails', async () => {
+  createRevision.mockRejectedValueOnce(new Error('revision failed'));
+  render(<PageStudio />);
+  fireEvent.click(screen.getByRole('button', { name: /save draft/i }));
+  await waitFor(() => {
+    expect(updateDraft).toHaveBeenCalled();
+    expect(toast).toHaveBeenCalledWith(expect.objectContaining({
+      title: expect.stringMatching(/revision/i),
+      variant: 'destructive',
+    }));
+  });
 });
 
 it('restores a saved revision into the working draft without publishing', async () => {
@@ -371,11 +401,15 @@ Expected: FAIL because PageStudio does not create revisions or restore them.
 - [ ] **Step 3: Implement minimal studio integration**
 
 ```ts
-const createRevision = useCreatePageRevision();
-const revisionHistory = usePageHistory(pubkey, workingDraft?.identifier);
+const revisionHistory = usePageHistory(workingDraft?.identifier ?? 'profile-draft');
+const { toast } = useToast();
 
 const handleSaveDraft = async () => {
-  await createRevision.mutateAsync({ page: workingDraft, source: 'save-draft' });
+  try {
+    await revisionHistory.createRevision.mutateAsync({ page: workingDraft, source: 'save-draft' });
+  } catch (error) {
+    toast({ title: 'Revision history failed to save', variant: 'destructive' });
+  }
   await saveDraft.mutateAsync(pageDocumentToSiteConfigInput(workingDraft));
 };
 
@@ -454,5 +488,6 @@ git commit -m "docs: add AI draft workflow spec and plan"
 
 - Do not invent a new public custom revision kind unless you find a concrete blocker in NIP-37 usage.
 - Keep proposal selection on top of the existing patch engine; do not fork patch logic for partial apply.
-- If revision creation fails, save/publish must fail too for this slice.
+- Query revision history with `authors: [user.pubkey]` and `#k: ['30512']`, then filter by page identifier after decrypt.
+- In this first slice, revision creation failures should warn but not block save/publish.
 - Keep the history UI narrow. A simple list plus restore is enough.

@@ -11,7 +11,7 @@ This slice combines three user-facing improvements into one coherent system:
 
 - selective apply for AI proposals
 - better proposal UX with readable summaries and grouped actions
-- durable draft revision history for saved and published states
+- best-effort private draft revision history for saved and published states
 
 The result should make the studio feel less like an AI experiment and more like a real page editor with review, control, and recovery.
 
@@ -20,7 +20,7 @@ The result should make the studio feel less like an AI experiment and more like 
 - Let owners review AI suggestions as structured draft change sets
 - Let owners apply only selected operations from an AI proposal
 - Replace raw operation-name output with clearer proposal summaries
-- Create durable revision history entries whenever the owner saves or publishes
+- Create best-effort private revision history entries whenever the owner saves or publishes
 - Keep unsaved local editing fast with lightweight in-memory revert behavior
 - Reuse existing Nostr standards where possible instead of inventing a new Divine-only revision kind
 
@@ -48,7 +48,7 @@ Instead, each copilot response should become a proposal with:
 
 When the owner applies selected operations, the local draft updates immediately and remains unsaved until the user explicitly saves or publishes.
 
-When the owner saves the draft or publishes the page, the app should create a durable revision snapshot before or alongside the write so the owner can later inspect and restore prior saved states.
+When the owner saves the draft or publishes the page, the app should attempt to create a private revision snapshot alongside the write so the owner can later inspect and restore prior saved states.
 
 ## User Experience
 
@@ -80,7 +80,7 @@ This keeps AI helpful without requiring users to accept a mixed-quality proposal
 
 ### Revision History
 
-The studio should expose a revision history view or panel showing durable saved states.
+The studio should expose a revision history view or panel showing saved states.
 
 Each revision entry should include:
 
@@ -113,7 +113,7 @@ Instead, the app should filter the selected operations from the validated sugges
 
 ### Durable Revision Storage
 
-Durable revisions should use NIP-37 `kind:31234` draft events rather than a new custom public revision kind.
+Revision history should use NIP-37 `kind:31234` draft events rather than a new custom public revision kind.
 
 Each saved revision should store a serialized page snapshot as an unsigned `kind:30512`-shaped payload encrypted to the owner. This is a good fit because:
 
@@ -122,6 +122,8 @@ Each saved revision should store a serialized page snapshot as an unsigned `kind
 - it fits the existing Nostr pattern for draft storage
 
 The saved page document remains public through the existing `kind:30512` draft and published identifiers. Revision history is private support data around that main model.
+
+Because the app does not yet support dedicated `kind:10013` private-storage relay selection, this first version should treat NIP-37 history as best-effort over the app’s current write relays. Dedicated private-relay support is future work.
 
 ## Data Model
 
@@ -138,7 +140,7 @@ The underlying patch engine should still operate on `PageCopilotSuggestion` and 
 
 ### Revision Snapshot
 
-Each durable revision should contain:
+Each revision should contain:
 
 - owner pubkey
 - revision event id
@@ -160,11 +162,13 @@ Continue using `kind:30512` as the canonical page state for:
 
 ### Private Revision State
 
-Store durable revisions as private `kind:31234` draft events addressed to the owner.
+Store revisions as private `kind:31234` draft events addressed to the owner.
 
-The encrypted payload should contain an unsigned serialized page snapshot plus small revision metadata such as source action and identifier. The event should include an `alt` tag describing it as a Divine page revision draft and enough tags to let the client filter revisions by owner and page identifier after decryption support is in place.
+The encrypted payload should contain an unsigned serialized page snapshot plus small revision metadata such as source action and identifier. The event should include an `alt` tag describing it as a Divine page revision draft plus the required `k` tag for `30512`.
 
 This is an inference from NIP-37 usage patterns: the NIP defines `kind:31234` as a draft wrapper for unsigned events, so using it for private page snapshot history aligns better than creating a new custom revision kind.
+
+Revision queries in `v1` should fetch the owner’s relevant `kind:31234` / `k=30512` events and filter by page identifier after decryption. The client should not leak page-identifier metadata into additional cleartext filter tags in this first version.
 
 ## Local Draft Safety
 
@@ -173,9 +177,9 @@ The studio must now distinguish among:
 - persisted draft state from the current `kind:30512` draft event
 - unsaved local working draft
 - last AI-applied local snapshot for immediate revert
-- durable saved revisions loaded from private history storage
+- saved revisions loaded from private history storage
 
-Immediate revert remains a local convenience for the most recent AI apply. Durable revisions are the recovery mechanism after save or publish.
+Immediate revert remains a local convenience for the most recent AI apply. Saved revisions are the longer-lived recovery mechanism after save or publish.
 
 If the owner manually edits after an AI apply, the one-step local AI revert should still be invalidated as it is today. Durable revision history covers longer-lived recovery.
 
@@ -186,7 +190,7 @@ If the owner manually edits after an AI apply, the one-step local AI revert shou
 - `src/types/pageCopilot.ts`
   Add view-model and revision metadata types for AI workflow state
 - `src/hooks/usePageHistory.ts`
-  Query, decrypt, publish, and restore durable page revisions
+  Query, decrypt, publish, and restore private page revisions
 - `src/hooks/usePageHistory.test.tsx`
   Tests for revision publish/query/restore behavior
 - `src/components/page/PageCopilotPanel.tsx`
@@ -208,7 +212,7 @@ The workflow should show clear errors when:
 - revision history cannot be decrypted
 - revision restore fails validation
 
-Failures in history creation should block completion of the corresponding save or publish action. If the product promises durable revisions on save/publish, those writes should not silently succeed without the snapshot.
+Failures in history creation should surface a visible warning but should not block the corresponding save or publish action in this first implementation. Revision history is best-effort until dedicated private-storage relay support exists.
 
 ## Testing Strategy
 
@@ -232,7 +236,7 @@ Failures in history creation should block completion of the corresponding save o
 - save draft creates a revision before completing
 - publish creates a revision before publishing
 - restoring a saved revision updates the working draft without immediate publish
-- failed revision creation blocks save/publish completion
+- failed revision creation shows a warning while save/publish still completes
 
 ## Recommended Scope Boundary
 
@@ -240,10 +244,11 @@ This slice should stop at:
 
 - selectable AI proposals
 - readable proposal UX
-- durable saved revision history
+- best-effort saved revision history
 
 Separate future work should cover:
 
+- dedicated `kind:10013` private storage relay support
 - visual diffs between revisions
 - named revisions or branching
 - cross-session conversational AI memory
