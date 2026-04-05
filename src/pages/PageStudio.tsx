@@ -104,6 +104,7 @@ export default function PageStudio() {
         widgets: appendWidgetToLayout(currentPage.widgets, type),
       };
     });
+    clearAiSnapshot();
   };
 
   const handleSelectWidget = (widgetId: string) => {

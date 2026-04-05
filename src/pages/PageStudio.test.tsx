@@ -1,10 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { createHead, UnheadProvider } from '@unhead/react/client';
+import { NostrLoginProvider } from '@nostrify/react/login';
+import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom';
 import { TestApp } from '@/test/TestApp';
+import NostrProvider from '@/components/NostrProvider';
+import { AppProvider } from '@/components/AppProvider';
+import { NWCProvider } from '@/contexts/NWCContext';
+import type { AppConfig } from '@/contexts/AppContext';
 import type { PageDocument } from '@/types/page';
 import type { PageCopilotSuggestion } from '@/types/pageCopilot';
 import type { PageRevision } from '@/types/pageHistory';
 import { PageStudioProvider } from '@/pages/pageStudio/PageStudioProvider';
+import PageStudioAi from './PageStudioAi';
 import Settings from './Settings';
 import MySpaceSettings from './MySpaceSettings';
 import PageStudio from './PageStudio';
@@ -318,6 +327,64 @@ describe('PageStudio', () => {
     );
   }
 
+  function renderSharedStudioRoutes(initialPath: string) {
+    const head = createHead();
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+    const defaultConfig: AppConfig = {
+      theme: 'light',
+      relayMetadata: {
+        relays: [
+          { url: 'wss://relay.primal.net', read: true, write: true },
+        ],
+        updatedAt: 0,
+      },
+    };
+
+    return render(
+      <UnheadProvider head={head}>
+        <AppProvider storageKey='test-app-config' defaultConfig={defaultConfig}>
+          <QueryClientProvider client={queryClient}>
+            <NostrLoginProvider storageKey='test-login'>
+              <NostrProvider>
+                <NWCProvider>
+                  <MemoryRouter initialEntries={[initialPath]}>
+                    <PageStudioProvider>
+                      <StudioRouteControls />
+                      <Routes>
+                        <Route path="/studio/page" element={<PageStudio />} />
+                        <Route path="/studio/ai" element={<PageStudioAi />} />
+                      </Routes>
+                    </PageStudioProvider>
+                  </MemoryRouter>
+                </NWCProvider>
+              </NostrProvider>
+            </NostrLoginProvider>
+          </QueryClientProvider>
+        </AppProvider>
+      </UnheadProvider>
+    );
+  }
+
+  function StudioRouteControls() {
+    const navigate = useNavigate();
+
+    return (
+      <div data-testid="studio-route-controls">
+        <button type="button" onClick={() => navigate('/studio/page')}>
+          Go to page route
+        </button>
+        <button type="button" onClick={() => navigate('/studio/ai')}>
+          Go to ai route
+        </button>
+      </div>
+    );
+  }
+
   it('does not create a starter draft when one already exists', async () => {
     renderPageStudio();
 
@@ -517,6 +584,46 @@ describe('PageStudio', () => {
 
     expect(await screen.findByTestId('editor-widget-count')).toHaveTextContent('1');
     expect(screen.getByTestId('editor-widget-ids')).toHaveTextContent(/profile-/);
+  });
+
+  it('disables AI revert after a manual widget addition', async () => {
+    renderSharedStudioRoutes('/studio/ai');
+
+    expect(screen.getByTestId('page-copilot-panel')).toHaveAttribute('data-can-revert', 'no');
+
+    fireEvent.click(screen.getByRole('button', { name: /apply ai suggestion/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('page-copilot-panel')).toHaveAttribute('data-can-revert', 'yes');
+    });
+
+    fireEvent.click(screen.getByRole('link', { name: /back to page editor/i }));
+
+    const banner = await screen.findByRole('banner');
+    fireEvent.click(within(banner).getByRole('button', { name: /add widget/i }));
+    fireEvent.click(await screen.findByTestId('add-widget-profile'));
+
+    fireEvent.click(screen.getByRole('button', { name: /go to ai route/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('page-copilot-panel')).toHaveAttribute('data-can-revert', 'no');
+    });
+    expect(screen.getByRole('button', { name: /revert ai suggestion/i })).toBeDisabled();
+  });
+
+  it('keeps the same draft across navigation from the AI route back to the page editor', async () => {
+    renderSharedStudioRoutes('/studio/ai');
+
+    fireEvent.click(screen.getByRole('button', { name: /apply ai suggestion/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('page-copilot-panel')).toHaveAttribute('data-can-revert', 'yes');
+    });
+
+    fireEvent.click(screen.getByRole('link', { name: /back to page editor/i }));
+
+    expect(await screen.findByText('AI Creator Home')).toBeInTheDocument();
+    expect(screen.getByTestId('editor-widget-count')).toHaveTextContent('1');
   });
 
   it('opens the temporary inspector when a widget is selected and closes it on dismiss', async () => {
