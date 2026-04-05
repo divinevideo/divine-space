@@ -10,7 +10,7 @@ The next hosted-page slice should turn the existing AI copilot into a trusted dr
 This slice combines three user-facing improvements into one coherent system:
 
 - selective apply for AI proposals
-- better proposal UX with readable summaries and grouped actions
+- better proposal UX with readable summaries and selectable actions
 - best-effort private draft revision history for saved and published states
 
 The result should make the studio feel less like an AI experiment and more like a real page editor with review, control, and recovery.
@@ -40,7 +40,7 @@ Inside `PageStudio`, AI suggestions should no longer be rendered as a bare list 
 Instead, each copilot response should become a proposal with:
 
 - a concise headline describing the intended change
-- grouped operations presented in readable language
+- readable operation rows presented in plain language
 - per-operation checkboxes or toggles
 - a clear count of selected operations
 - an apply action for only the selected subset
@@ -101,7 +101,7 @@ That layer should derive:
 
 - readable operation summaries
 - operation identifiers stable enough for selection state
-- grouped proposal sections for display
+- a predictable flat proposal list for display in this slice
 
 This keeps the AI transport and patch engine simple while allowing a more human reviewable UI.
 
@@ -115,11 +115,11 @@ Instead, the app should filter the selected operations from the validated sugges
 
 Revision history should use NIP-37 `kind:31234` draft events rather than a new custom public revision kind.
 
-Each saved revision should store a serialized page snapshot as an unsigned `kind:30512`-shaped payload encrypted to the owner. This is a good fit because:
+Each saved revision should store a serialized `PageDocument` snapshot encrypted to the owner. This is a good fit because:
 
 - revisions are owner-facing editor history, not public content
 - it avoids creating a new public Divine-specific event kind
-- it fits the existing Nostr pattern for draft storage
+- it fits the existing Nostr pattern for draft storage without inventing a second page serialization layer
 
 The saved page document remains public through the existing `kind:30512` draft and published identifiers. Revision history is private support data around that main model.
 
@@ -143,13 +143,12 @@ The underlying patch engine should still operate on `PageCopilotSuggestion` and 
 Each revision should contain:
 
 - owner pubkey
-- revision event id
 - timestamp
 - source action: `save-draft` or `publish`
 - page identifier being snapshotted
-- serialized page snapshot content
+- serialized page snapshot content as a cloned `PageDocument`
 
-The client can derive a lightweight preview label from the stored page title and widget mix after decryption.
+The client derives the revision id from the outer `kind:31234` event after fetch/decrypt. The client can derive a lightweight preview label from the stored page title and widget mix after decryption.
 
 ## Nostr Model
 
@@ -164,7 +163,7 @@ Continue using `kind:30512` as the canonical page state for:
 
 Store revisions as private `kind:31234` draft events addressed to the owner.
 
-The encrypted payload should contain an unsigned serialized page snapshot plus small revision metadata such as source action and identifier. The event should include an `alt` tag describing it as a Divine page revision draft plus the required `k` tag for `30512`.
+The encrypted payload should contain the cloned `PageDocument` plus small revision metadata such as source action, timestamp, and page identifier. The event should include an `alt` tag describing it as a Divine page revision draft plus the required `k` tag for `30512`.
 
 This is an inference from NIP-37 usage patterns: the NIP defines `kind:31234` as a draft wrapper for unsigned events, so using it for private page snapshot history aligns better than creating a new custom revision kind.
 
@@ -182,6 +181,8 @@ The studio must now distinguish among:
 Immediate revert remains a local convenience for the most recent AI apply. Saved revisions are the longer-lived recovery mechanism after save or publish.
 
 If the owner manually edits after an AI apply, the one-step local AI revert should still be invalidated as it is today. Durable revision history covers longer-lived recovery.
+
+If the owner publishes while the draft is dirty, the studio may create two best-effort history entries in sequence: a `save-draft` snapshot before persisting the draft, then a `publish` snapshot before the publish action completes.
 
 ## Components and Responsibilities
 

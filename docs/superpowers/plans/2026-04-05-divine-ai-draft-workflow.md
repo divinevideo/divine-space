@@ -4,7 +4,7 @@
 
 **Goal:** Turn the current AI copilot into a trusted draft workflow with selective apply, readable proposal UX, and best-effort private revision history for page saves and publishes.
 
-**Architecture:** Build on the existing `PageStudio`, `usePageCopilot`, and `kind:30512` draft/published page flow. Add a private revision layer using NIP-37 `kind:31234` draft-wrap events published through the current write path, then decrypt and filter them client-side by page identifier. Add a presentation layer that converts raw AI operations into readable, selectable proposal items before applying them to the local working draft.
+**Architecture:** Build on the existing `PageStudio`, `usePageCopilot`, and `kind:30512` draft/published page flow. Add a private revision layer using NIP-37 `kind:31234` draft-wrap events published through the current write path, then decrypt and filter them client-side by page identifier. The encrypted payload stores a cloned `PageDocument` snapshot plus source/timestamp metadata. Add a presentation layer that converts raw AI operations into readable, selectable proposal items before applying them to the local working draft.
 
 **Tech Stack:** React 18, TypeScript, TanStack Query, Vitest, Testing Library, Nostrify, existing Keycast/Nostr signers with NIP-44 support
 
@@ -14,7 +14,7 @@
 
 This plan covers only the next AI draft workflow slice:
 
-- proposal summaries and grouped operation review
+- proposal summaries and readable operation review
 - selective apply for AI operations
 - best-effort private revision snapshots on save draft and publish
 - revision restore into the local working draft
@@ -76,15 +76,15 @@ This plan intentionally excludes:
 
 ```ts
 it('builds revision tags for a private 30512 snapshot', () => {
-  const tags = buildPageRevisionTags('profile-draft', 'save-draft', 'rev-1');
+  const tags = buildPageRevisionTags('rev-1');
   expect(tags).toContainEqual(['k', '30512']);
   expect(tags).toContainEqual(['d', 'rev-1']);
 });
 
-it('serializes a page snapshot into an unsigned 30512 event payload', () => {
+it('serializes a page snapshot into an encrypted-history payload shape', () => {
   const payload = createPageRevisionSnapshot(page, 'save-draft');
-  expect(payload.kind).toBe(30512);
-  expect(payload.tags).toContainEqual(['d', 'profile-draft']);
+  expect(payload.pageIdentifier).toBe('profile-draft');
+  expect(payload.page).toEqual(page);
 });
 ```
 
@@ -100,15 +100,10 @@ export interface PageRevisionSnapshot {
   source: 'save-draft' | 'publish';
   pageIdentifier: string;
   createdAt: number;
-  unsignedEvent: {
-    kind: 30512;
-    created_at: number;
-    tags: string[][];
-    content: string;
-  };
+  page: PageDocument;
 }
 
-export function buildPageRevisionTags(identifier: string, source: PageRevisionSource, revisionId: string): string[][] {
+export function buildPageRevisionTags(revisionId: string): string[][] {
   return [
     ['d', revisionId],
     ['k', '30512'],
@@ -177,8 +172,8 @@ export function usePageHistory(identifier = 'profile-draft') {
     mutationFn: async ({ page, source }) => {
       if (!user?.signer?.nip44) throw new Error('NIP-44 encryption not available');
       const snapshot = createPageRevisionSnapshot(page, source);
-      const ciphertext = await user.signer.nip44.encrypt(user.pubkey, JSON.stringify(snapshot.unsignedEvent));
-      return publish({ kind: 31234, content: ciphertext, tags: buildPageRevisionTags(page.identifier, source, crypto.randomUUID()) });
+      const ciphertext = await user.signer.nip44.encrypt(user.pubkey, JSON.stringify(snapshot));
+      return publish({ kind: 31234, content: ciphertext, tags: buildPageRevisionTags(crypto.randomUUID()) });
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['page-history', user?.pubkey, identifier] });
@@ -206,6 +201,8 @@ git commit -m "feat: add page revision history hook"
 ```
 
 ## Chunk 2: Proposal Review and Selective Apply
+
+Note: when a dirty draft is published, the studio may create both a `save-draft` revision and a `publish` revision in sequence. Tests should account for that behavior instead of assuming publish is always a single history entry.
 
 ### Task 3: Add proposal summaries and stable operation selection
 
@@ -401,7 +398,8 @@ Expected: FAIL because PageStudio does not create revisions or restore them.
 - [ ] **Step 3: Implement minimal studio integration**
 
 ```ts
-const revisionHistory = usePageHistory(workingDraft?.identifier ?? 'profile-draft');
+const pageIdentifier = draftPage?.identifier ?? draftQuery.data?.identifier ?? 'profile-draft';
+const revisionHistory = usePageHistory(pageIdentifier);
 const { toast } = useToast();
 
 const handleSaveDraft = async () => {
@@ -413,9 +411,8 @@ const handleSaveDraft = async () => {
   await saveDraft.mutateAsync(pageDocumentToSiteConfigInput(workingDraft));
 };
 
-const handleRestoreRevision = async (revisionId: string) => {
-  const restored = await revisionHistory.restoreRevision(revisionId);
-  setDraftPage(restored);
+const handleRestoreRevision = (revision: PageRevision) => {
+  setDraftPage(revision.page);
 };
 ```
 
