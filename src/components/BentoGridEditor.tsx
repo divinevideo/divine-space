@@ -41,6 +41,10 @@ interface BentoGridEditorProps {
   pubkey: string;
   /** Callback when the layout changes */
   onChange: (layout: BentoLayout) => void;
+  /** Optional id for the currently selected widget */
+  selectedWidgetId?: string;
+  /** Callback when a widget is selected */
+  onSelectWidget?: (widgetId: string) => void;
   /** Optional class name */
   className?: string;
 }
@@ -53,6 +57,8 @@ export function BentoGridEditor({
   layout,
   pubkey,
   onChange,
+  selectedWidgetId,
+  onSelectWidget,
   className,
 }: BentoGridEditorProps) {
   // Convert widgets to react-grid-layout format with constraints
@@ -129,7 +135,12 @@ export function BentoGridEditor({
           <div
             key={widget.id}
             data-testid={`widget-${widget.id}`}
-            className="relative"
+            data-selected={selectedWidgetId === widget.id ? 'yes' : 'no'}
+            className={cn(
+              'relative',
+              selectedWidgetId === widget.id && 'ring-2 ring-primary ring-offset-2 ring-offset-background'
+            )}
+            onClick={() => onSelectWidget?.(widget.id)}
           >
             <WidgetEditorItem
               widget={widget}

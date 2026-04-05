@@ -106,6 +106,40 @@ describe('BentoGridEditor', () => {
     expect(screen.getByTestId('widget-top8-1')).toBeInTheDocument();
   });
 
+  it('calls onSelectWidget when a widget is clicked and marks the selected widget', () => {
+    const onSelectWidget = vi.fn();
+
+    const { rerender } = render(
+      <TestApp>
+        <BentoGridEditor
+          layout={layoutWithWidgets}
+          pubkey={mockPubkey}
+          onChange={mockOnChange}
+          selectedWidgetId={undefined}
+          onSelectWidget={onSelectWidget}
+        />
+      </TestApp>
+    );
+
+    fireEvent.click(screen.getByTestId('widget-profile-1'));
+
+    expect(onSelectWidget).toHaveBeenCalledWith('profile-1');
+
+    rerender(
+      <TestApp>
+        <BentoGridEditor
+          layout={layoutWithWidgets}
+          pubkey={mockPubkey}
+          onChange={mockOnChange}
+          selectedWidgetId="profile-1"
+          onSelectWidget={onSelectWidget}
+        />
+      </TestApp>
+    );
+
+    expect(screen.getByTestId('widget-profile-1')).toHaveAttribute('data-selected', 'yes');
+  });
+
   it('renders the actual widget preview while editing', () => {
     render(
       <TestApp>
