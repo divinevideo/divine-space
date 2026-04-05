@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
-import { useCurrentUser } from './useCurrentUser';
+import { useAuth } from './useAuth';
 import { useKeycastPublish } from './useKeycastPublish';
 import {
   buildPageRevisionTags,
@@ -20,22 +20,22 @@ export const PAGE_HISTORY_QUERY_KEY = (pubkey: string, identifier = 'profile-dra
 
 export function usePageHistory(identifier = 'profile-draft') {
   const { nostr } = useNostr();
-  const { user } = useCurrentUser();
+  const { pubkey, signer } = useAuth();
   const { mutateAsync: publish } = useKeycastPublish();
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: user ? PAGE_HISTORY_QUERY_KEY(user.pubkey, identifier) : ['page-history', 'none', identifier],
-    enabled: !!user?.pubkey && !!user.signer?.nip44,
+    queryKey: pubkey ? PAGE_HISTORY_QUERY_KEY(pubkey, identifier) : ['page-history', 'none', identifier],
+    enabled: !!pubkey && !!signer?.nip44,
     queryFn: async (): Promise<PageRevision[]> => {
-      if (!user?.pubkey || !user.signer?.nip44) {
+      if (!pubkey || !signer?.nip44) {
         return [];
       }
 
       const events = await nostr.query([
         {
           kinds: [PAGE_HISTORY_KIND],
-          authors: [user.pubkey],
+          authors: [pubkey],
           '#k': ['30512'],
           limit: 50,
         },
@@ -44,7 +44,7 @@ export function usePageHistory(identifier = 'profile-draft') {
       const revisions = await Promise.all(
         events.map(async (event) => {
           try {
-            const plaintext = await user.signer.nip44!.decrypt(user.pubkey, event.content);
+            const plaintext = await signer.nip44!.decrypt(pubkey, event.content);
             return parsePageRevisionContent(event, plaintext);
           } catch {
             return null;
@@ -67,17 +67,17 @@ export function usePageHistory(identifier = 'profile-draft') {
       page: PageDocument;
       source: PageRevisionSource;
     }) => {
-      if (!user?.pubkey) {
+      if (!pubkey) {
         throw new Error('Not authenticated');
       }
 
-      if (!user.signer?.nip44) {
+      if (!signer?.nip44) {
         throw new Error('NIP-44 encryption not available');
       }
 
       const snapshot = createPageRevisionSnapshot(page, source);
       const revisionId = `${page.identifier}-${source}-${snapshot.createdAt}`;
-      const ciphertext = await user.signer.nip44.encrypt(user.pubkey, JSON.stringify(snapshot));
+      const ciphertext = await signer.nip44.encrypt(pubkey, JSON.stringify(snapshot));
 
       return publish({
         kind: PAGE_HISTORY_KIND,
@@ -87,12 +87,12 @@ export function usePageHistory(identifier = 'profile-draft') {
       });
     },
     onSuccess: async () => {
-      if (!user?.pubkey) {
+      if (!pubkey) {
         return;
       }
 
       await queryClient.invalidateQueries({
-        queryKey: PAGE_HISTORY_QUERY_KEY(user.pubkey, identifier),
+        queryKey: PAGE_HISTORY_QUERY_KEY(pubkey, identifier),
       });
     },
   });
