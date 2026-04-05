@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Search, User, Users, Trophy, Video, Menu, X, Sparkles } from 'lucide-react';
+import { Home, Search, User, Users, Trophy, Video, Menu, X, Sparkles, Pencil } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { LoginArea } from '@/components/auth/LoginArea';
@@ -31,6 +31,7 @@ export function Layout({ children }: LayoutProps) {
   ];
 
   const userNavigation = isAuthenticated && pubkey ? [
+    { name: 'My Page', href: '/studio/page', icon: Pencil },
     { name: 'My Profile', href: `/${nip19.npubEncode(pubkey)}`, icon: User },
     { name: 'Friends', href: '/friends', icon: Users },
   ] : [];

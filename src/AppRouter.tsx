@@ -11,6 +11,7 @@ import Embed from "./pages/Embed";
 import Friends from "./pages/Friends";
 import Settings from "./pages/Settings";
 import MySpaceSettings from "./pages/MySpaceSettings";
+import PageStudio from "./pages/PageStudio";
 import Messages from "./pages/Messages";
 import Callback from "./pages/Callback";
 import { NIP19Page } from "./pages/NIP19Page";
@@ -39,6 +40,7 @@ function SubdomainAwareRouter() {
           <Route path="/embed/:id" element={<Embed />} />
           <Route path="/settings/profile" element={<Settings />} />
           <Route path="/settings/myspace" element={<MySpaceSettings />} />
+          <Route path="/studio/page" element={<PageStudio />} />
           <Route path="*" element={<Profile pubkey={pubkey} isSubdomain subdomain={subdomain} />} />
         </Routes>
       </BrowserRouter>
@@ -72,6 +74,7 @@ function SubdomainAwareRouter() {
         <Route path="/messages" element={<Messages />} />
         <Route path="/settings/profile" element={<Settings />} />
         <Route path="/settings/myspace" element={<MySpaceSettings />} />
+        <Route path="/studio/page" element={<PageStudio />} />
         <Route path="/callback" element={<Callback />} />
         {/* NIP-19 route for npub1, note1, naddr1, nevent1, nprofile1 */}
         <Route path="/:nip19" element={<NIP19Page />} />
