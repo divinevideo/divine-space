@@ -7,7 +7,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
 /**
  * Check if the current user has liked a video
  */
-export function useVideoReaction(videoId: string | undefined, videoAuthorPubkey: string | undefined) {
+export function useVideoReaction(videoId: string | undefined, _videoAuthorPubkey: string | undefined) {
   const { nostr } = useNostr();
   const { pubkey, isAuthenticated } = useAuth();
 

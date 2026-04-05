@@ -80,7 +80,7 @@ describe('useProfileLinks', () => {
   it('should query Kind 30003 with d-tag "links"', async () => {
     mockQuery.mockResolvedValue([]);
 
-    const { result } = renderHook(() => useProfileLinks('test-pubkey'), {
+    renderHook(() => useProfileLinks('test-pubkey'), {
       wrapper: createWrapper(),
     });
 

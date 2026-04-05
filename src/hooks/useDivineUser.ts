@@ -1,13 +1,12 @@
 import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
-import { 
-  fetchUser, 
-  fetchUserVideos, 
+import {
+  fetchUser,
+  fetchUserVideos,
   fetchUserFollowers,
   fetchUserFollowing,
   fetchUserSocial,
   fetchUserFeed,
   fetchUserRecommendations,
-  type UserResponse,
   type VideoListItem,
 } from '@/lib/divine-api';
 

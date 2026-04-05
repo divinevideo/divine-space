@@ -7,7 +7,7 @@ import {
   parseThemeId,
   parseContentIncludes,
 } from './parseSiteConfig';
-import type { SiteConfig, SiteConfigInput } from '@/types/site';
+import type { SiteConfigInput } from '@/types/site';
 
 // Helper to create a mock Kind 30512 event
 function createSiteEvent(
