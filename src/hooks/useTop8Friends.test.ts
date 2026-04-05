@@ -9,8 +9,8 @@ vi.mock('@nostrify/react', () => ({
   useNostr: vi.fn(),
 }));
 
-vi.mock('./useNostrPublish', () => ({
-  useNostrPublish: vi.fn(() => ({
+vi.mock('./useKeycastPublish', () => ({
+  useKeycastPublish: vi.fn(() => ({
     mutateAsync: vi.fn(),
     isPending: false,
   })),

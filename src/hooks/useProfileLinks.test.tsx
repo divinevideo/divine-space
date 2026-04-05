@@ -13,6 +13,10 @@ vi.mock('@/contexts/KeycastContext', () => ({
   useKeycast: vi.fn(),
 }));
 
+vi.mock('./useAuth', () => ({
+  useAuth: vi.fn(),
+}));
+
 vi.mock('./useKeycastPublish', () => ({
   useKeycastPublish: vi.fn(),
 }));
@@ -20,7 +24,7 @@ vi.mock('./useKeycastPublish', () => ({
 // Import after mocks are set up
 import { useProfileLinks } from './useProfileLinks';
 import { useNostr } from '@nostrify/react';
-import { useKeycast } from '@/contexts/KeycastContext';
+import { useAuth } from './useAuth';
 import { useKeycastPublish } from './useKeycastPublish';
 
 // Helper to create mock events
@@ -66,9 +70,13 @@ describe('useProfileLinks', () => {
       nostr: { query: mockQuery },
     });
 
-    (useKeycast as ReturnType<typeof vi.fn>).mockReturnValue({
+    (useAuth as ReturnType<typeof vi.fn>).mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
       pubkey: 'user-pubkey',
       signer: { signEvent: vi.fn() },
+      isKeycastLogin: true,
+      logout: vi.fn(),
     });
 
     (useKeycastPublish as ReturnType<typeof vi.fn>).mockReturnValue({
@@ -252,9 +260,13 @@ describe('useProfileLinks mutation', () => {
       nostr: { query: mockQuery },
     });
 
-    (useKeycast as ReturnType<typeof vi.fn>).mockReturnValue({
+    (useAuth as ReturnType<typeof vi.fn>).mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
       pubkey: 'user-pubkey',
       signer: { signEvent: vi.fn() },
+      isKeycastLogin: true,
+      logout: vi.fn(),
     });
 
     (useKeycastPublish as ReturnType<typeof vi.fn>).mockReturnValue({
