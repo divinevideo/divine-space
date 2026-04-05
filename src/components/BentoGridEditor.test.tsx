@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { TestApp } from '@/test/TestApp';
 import { BentoGridEditor } from './BentoGridEditor';
-import type { BentoLayout, Widget } from '@/types/widgets';
+import type { BentoLayout } from '@/types/widgets';
 
 // Mock react-grid-layout since it requires a DOM environment
 // Note: The component uses require() so the mock needs to work with CJS interop

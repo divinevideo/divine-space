@@ -8,8 +8,6 @@ import {
   Quote, 
   Eye, 
   Sparkles,
-  Clock,
-  Calendar,
   Heart,
   Wand2,
   Palette,

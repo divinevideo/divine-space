@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Heart, MessageCircle, Repeat2, Play, Eye, RefreshCw } from 'lucide-react';
+import { Heart, MessageCircle, Repeat2, Play, RefreshCw } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
