@@ -1,4 +1,4 @@
-// ABOUTME: Hook for detecting and handling divine.space subdomains
+// ABOUTME: Hook for detecting and handling divine.space / divine.video subdomains
 // ABOUTME: Reads injected user context from Compute service
 
 interface DivineSpaceUser {
@@ -80,9 +80,12 @@ export function getSubdomainFromHostname(): string | null {
     return null;
   }
 
-  // Extract subdomain from divine.space
+  // Extract subdomain from hosted page domains.
   const parts = hostname.split('.');
-  if (parts.length >= 3 && hostname.endsWith('.divine.space')) {
+  if (
+    parts.length >= 3 &&
+    (hostname.endsWith('.divine.space') || hostname.endsWith('.divine.video'))
+  ) {
     const subdomain = parts.slice(0, -2).join('.');
     if (subdomain === 'www') return null;
     return subdomain.toLowerCase();
