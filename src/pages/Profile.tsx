@@ -350,12 +350,6 @@ export default function Profile({ pubkey, isSubdomain, subdomain }: ProfileProps
                 </div>
               </div>
 
-              {/* Mood & Status - MySpace style! */}
-              <div className="mt-4 space-y-2">
-                <MoodWidget mood={myspaceProfile?.mood} />
-                <StatusWidget status={myspaceProfile?.status} />
-              </div>
-
               {/* Bio */}
               {profile.about && (
                 <p className="mt-4 text-muted-foreground max-w-2xl whitespace-pre-wrap">

@@ -73,6 +73,7 @@ export function PageStudioProvider({ children }: { children: ReactNode }) {
   const [lastAiSnapshot, setLastAiSnapshot] = useState<PageDocument | null>(null);
   const lastHydratedDraftSnapshot = useRef<string | null>(null);
   const previousPubkey = useRef<string | undefined>(pubkey);
+  const authEpoch = useRef(0);
   const pageIdentifier = draftPage?.identifier ?? draftQuery.data?.identifier ?? 'profile-draft';
   const saveDraftMutation = useUpdateSiteConfig(pageIdentifier);
   const revisionHistory = usePageHistory(pageIdentifier);
@@ -83,6 +84,7 @@ export function PageStudioProvider({ children }: { children: ReactNode }) {
     }
 
     previousPubkey.current = pubkey;
+    authEpoch.current += 1;
     bootstrappedPubkey.current = undefined;
     lastHydratedDraftSnapshot.current = null;
     setDraftPage(null);
@@ -149,25 +151,40 @@ export function PageStudioProvider({ children }: { children: ReactNode }) {
     setLastAiSnapshot(null);
   };
 
-  const handleSaveDraft = async () => {
-    if (!workingDraft) {
+  const isCurrentAuthEpoch = (epoch: number) => authEpoch.current === epoch;
+
+  const handleSaveDraft = async ({
+    page = workingDraft,
+    epoch = authEpoch.current,
+  }: {
+    page?: PageDocument | null;
+    epoch?: number;
+  } = {}) => {
+    if (!page) {
       return;
     }
 
     try {
       await revisionHistory.createRevision.mutateAsync({
-        page: workingDraft,
+        page,
         source: 'save-draft',
       });
     } catch {
-      toast({
-        title: 'Revision history failed to save',
-        variant: 'destructive',
-      });
+      if (isCurrentAuthEpoch(epoch)) {
+        toast({
+          title: 'Revision history failed to save',
+          variant: 'destructive',
+        });
+      }
     }
 
-    await saveDraftMutation.mutateAsync(pageDocumentToSiteConfigInput(workingDraft));
-    setSavedDraftSnapshot(workingDraft);
+    await saveDraftMutation.mutateAsync(pageDocumentToSiteConfigInput(page));
+
+    if (!isCurrentAuthEpoch(epoch)) {
+      return;
+    }
+
+    setSavedDraftSnapshot(page);
   };
 
   const handlePublish = async () => {
@@ -175,23 +192,35 @@ export function PageStudioProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    const epoch = authEpoch.current;
+    const page = workingDraft;
+
     if (hasDraftChanges) {
-      await handleSaveDraft();
+      await handleSaveDraft({ page, epoch });
+      if (!isCurrentAuthEpoch(epoch)) {
+        return;
+      }
     }
 
     try {
       await revisionHistory.createRevision.mutateAsync({
-        page: workingDraft,
+        page,
         source: 'publish',
       });
     } catch {
-      toast({
-        title: 'Publish history snapshot failed',
-        variant: 'destructive',
-      });
+      if (isCurrentAuthEpoch(epoch)) {
+        toast({
+          title: 'Publish history snapshot failed',
+          variant: 'destructive',
+        });
+      }
     }
 
-    await publishDraft.mutateAsync(workingDraft);
+    if (!isCurrentAuthEpoch(epoch)) {
+      return;
+    }
+
+    await publishDraft.mutateAsync(page);
   };
 
   const value: PageStudioControllerValue = {

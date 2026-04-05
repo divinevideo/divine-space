@@ -105,6 +105,17 @@ function createPage(overrides: Partial<PageDocument> = {}): PageDocument {
   };
 }
 
+function createDeferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+
+  return { promise, resolve, reject };
+}
+
 function wrapper({ children }: { children: ReactNode }) {
   return <PageStudioProvider>{children}</PageStudioProvider>;
 }
@@ -224,5 +235,54 @@ describe('PageStudioProvider', () => {
     });
     expect(result.current.hasDraftChanges).toBe(false);
     expect(result.current.canRevertAiChange).toBe(false);
+  });
+
+  it('ignores stale save completions after the authenticated pubkey changes', async () => {
+    const deferredSave = createDeferred<void>();
+    updateDraft.mockImplementationOnce(() => deferredSave.promise);
+
+    const { result, rerender } = renderHook(() => usePageStudioController(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.workingDraft?.title).toBe('Server Draft');
+    });
+
+    act(() => {
+      result.current.setDraftPage((current) => current ? {
+        ...current,
+        title: 'Alice Local Draft',
+      } : current);
+    });
+
+    const savePromise = result.current.saveDraft();
+
+    authState.current = {
+      pubkey: 'b'.repeat(64),
+      isAuthenticated: true,
+      isLoading: false,
+      signer: undefined,
+      isKeycastLogin: false,
+      logout: vi.fn(),
+    };
+    draftQueryState.current = {
+      data: createPage({
+        title: 'Bob Draft',
+      }),
+      isSuccess: true,
+    };
+
+    rerender();
+
+    await waitFor(() => {
+      expect(result.current.workingDraft?.title).toBe('Bob Draft');
+    });
+
+    await act(async () => {
+      deferredSave.resolve();
+      await savePromise;
+    });
+
+    expect(result.current.workingDraft?.title).toBe('Bob Draft');
+    expect(result.current.hasDraftChanges).toBe(false);
   });
 });

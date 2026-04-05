@@ -153,5 +153,7 @@ describe('Profile hosted page rendering', () => {
     expect(within(sideRail).getByText(/current mood:/i)).toBeInTheDocument();
     expect(within(sideRail).getByText(/we are so back/i)).toBeInTheDocument();
     expect(within(sideRail).getByText(/create the things you wish existed\./i)).toBeInTheDocument();
+    expect(screen.getAllByText(/current mood:/i)).toHaveLength(1);
+    expect(screen.getAllByText(/we are so back/i)).toHaveLength(1);
   });
 });
