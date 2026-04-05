@@ -7,13 +7,8 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
-import { createWidget } from '@/types/widgets';
 import type { Widget, WidgetType } from '@/types/widgets';
-import {
-  canAddWidget,
-  getAllWidgetDefinitions,
-  getDefaultSize,
-} from '@/lib/widgetRegistry';
+import { canAddWidget, getAllWidgetDefinitions } from '@/lib/widgetRegistry';
 
 const iconMap: Record<string, ComponentType<{ className?: string }>> = {
   User,
@@ -32,18 +27,6 @@ const iconMap: Record<string, ComponentType<{ className?: string }>> = {
 
 function getIconComponent(iconName: string): ComponentType<{ className?: string }> {
   return iconMap[iconName] || Square;
-}
-
-export function appendWidgetToLayout(widgets: Widget[], type: WidgetType): Widget[] {
-  if (!canAddWidget(type, widgets)) {
-    return widgets;
-  }
-
-  const defaultSize = getDefaultSize(type);
-  const maxY = widgets.reduce((max, widget) => Math.max(max, widget.y + widget.h), 0);
-  const newWidget = createWidget(type, { x: 0, y: maxY }, defaultSize);
-
-  return [...widgets, newWidget];
 }
 
 export interface PageStudioAddWidgetMenuProps {

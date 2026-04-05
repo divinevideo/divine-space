@@ -2,7 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { TestApp } from '@/test/TestApp';
 import { BentoGridEditor } from './BentoGridEditor';
-import { PageStudioAddWidgetMenu, appendWidgetToLayout } from '@/components/page/PageStudioAddWidgetMenu';
+import { PageStudioAddWidgetMenu } from '@/components/page/PageStudioAddWidgetMenu';
+import { appendWidgetToLayout } from '@/lib/pageStudioWidgets';
 import type { BentoLayout } from '@/types/widgets';
 
 vi.mock('@/components/widgets/ProfileWidget', () => ({

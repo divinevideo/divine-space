@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { TestApp } from '@/test/TestApp';
 import type { PageDocument } from '@/types/page';
 import type { PageCopilotSuggestion } from '@/types/pageCopilot';
@@ -123,8 +123,26 @@ vi.mock('@/hooks/useToast', () => ({
 }));
 
 vi.mock('@/components/BentoGridEditor', () => ({
-  BentoGridEditor: ({ onChange }: { onChange: (layout: { type: 'bento'; gridCols: number; rowHeight: number; widgets: Array<{ id: string; type: 'profile'; x: number; y: number; w: number; h: number }> }) => void }) => (
-    <div data-testid="bento-grid-editor">
+  BentoGridEditor: ({
+    layout,
+    onChange,
+  }: {
+    layout: {
+      type: 'bento';
+      gridCols: number;
+      rowHeight: number;
+      widgets: Array<{ id: string; type: 'profile'; x: number; y: number; w: number; h: number }>;
+    };
+    onChange: (layout: {
+      type: 'bento';
+      gridCols: number;
+      rowHeight: number;
+      widgets: Array<{ id: string; type: 'profile'; x: number; y: number; w: number; h: number }>;
+    }) => void;
+  }) => (
+    <div data-testid="bento-grid-editor" data-widget-count={layout.widgets.length}>
+      <div data-testid="editor-widget-count">{layout.widgets.length}</div>
+      <div data-testid="editor-widget-ids">{layout.widgets.map((widget) => widget.id).join(',')}</div>
       <button
         type="button"
         onClick={() => onChange({
@@ -376,13 +394,23 @@ describe('PageStudio', () => {
     expect(screen.getByTestId('navigate')).toHaveAttribute('data-to', '/studio/page');
   });
 
-  it('exposes add widget in the top bar', async () => {
+  it('renders add widget in the shell header and appends a widget through the route menu', async () => {
     render(
       <TestApp>
         <PageStudio />
       </TestApp>
     );
 
-    expect(await screen.findByRole('button', { name: /add widget/i })).toBeInTheDocument();
+    const banner = screen.getByRole('banner');
+    const topBar = within(banner);
+    expect(topBar.getByRole('button', { name: /add widget/i })).toBeInTheDocument();
+
+    expect(screen.getByTestId('editor-widget-count')).toHaveTextContent('0');
+
+    fireEvent.click(topBar.getByRole('button', { name: /add widget/i }));
+    fireEvent.click(await screen.findByTestId('add-widget-profile'));
+
+    expect(await screen.findByTestId('editor-widget-count')).toHaveTextContent('1');
+    expect(screen.getByTestId('editor-widget-ids')).toHaveTextContent(/profile-/);
   });
 });
