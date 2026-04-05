@@ -29,6 +29,7 @@ There are currently two deploy paths in the repo:
    - Lives under [`compute-js/`](/Users/rabble/code/divine/divine-space/compute-js)
    - This is the production path for `divine.space`
    - Publishes static app assets to Fastly KV and then publishes the Compute service
+   - GitHub Actions deploy workflow lives in [deploy.yml](/Users/rabble/code/divine/divine-space/.worktrees/fastly-gh-action/.github/workflows/deploy.yml)
 
 ## Fastly Deploy Steps
 
@@ -49,6 +50,23 @@ export FASTLY_API_TOKEN="$(fastly profile token user)"
 ```bash
 npm run deploy
 ```
+
+## GitHub Actions Deploy
+
+Production deploys should happen through GitHub Actions, not GitHub Pages.
+
+The deploy workflow should:
+
+1. wait for the `Test` workflow to succeed on `main`
+2. check out the exact tested commit
+3. build the root app bundle into `dist/`
+4. install `compute-js` dependencies
+5. run `compute-js` deploy using `FASTLY_API_TOKEN`
+
+Repository secret required:
+
+- `FASTLY_API_TOKEN`
+  Must have permission to read and write the `divine-space-content` KV store and publish the `divine-space` Compute service.
 
 ## Important Gotcha
 
