@@ -5,6 +5,7 @@ import type { PageDocument } from '@/types/page';
 import { PageStudioProvider, usePageStudioController } from './PageStudioProvider';
 
 const {
+  authState,
   ensureStarterDraft,
   publishDraftMutation,
   updateDraft,
@@ -12,6 +13,16 @@ const {
   toast,
   usePageHistoryMock,
 } = vi.hoisted(() => ({
+  authState: {
+    current: {
+      pubkey: 'a'.repeat(64),
+      isAuthenticated: true,
+      isLoading: false,
+      signer: undefined,
+      isKeycastLogin: false,
+      logout: vi.fn(),
+    },
+  },
   ensureStarterDraft: vi.fn(),
   publishDraftMutation: vi.fn(),
   updateDraft: vi.fn(),
@@ -40,14 +51,7 @@ const draftQueryState: {
 };
 
 vi.mock('@/hooks/useAuth', () => ({
-  useAuth: vi.fn(() => ({
-    pubkey: 'a'.repeat(64),
-    isAuthenticated: true,
-    isLoading: false,
-    signer: undefined,
-    isKeycastLogin: false,
-    logout: vi.fn(),
-  })),
+  useAuth: vi.fn(() => authState.current),
 }));
 
 vi.mock('@/hooks/usePageDocument', () => ({
@@ -108,6 +112,14 @@ function wrapper({ children }: { children: ReactNode }) {
 describe('PageStudioProvider', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    authState.current = {
+      pubkey: 'a'.repeat(64),
+      isAuthenticated: true,
+      isLoading: false,
+      signer: undefined,
+      isKeycastLogin: false,
+      logout: vi.fn(),
+    };
     draftQueryState.current = {
       data: createPage(),
       isSuccess: true,
@@ -174,5 +186,43 @@ describe('PageStudioProvider', () => {
     await waitFor(() => {
       expect(result.current.workingDraft?.title).toBe('Local Dirty Draft');
     });
+  });
+
+  it('resets local draft state when the authenticated pubkey changes', async () => {
+    const { result, rerender } = renderHook(() => usePageStudioController(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.workingDraft?.title).toBe('Server Draft');
+    });
+
+    act(() => {
+      result.current.setDraftPage((current) => current ? {
+        ...current,
+        title: 'Alice Local Draft',
+      } : current);
+    });
+
+    authState.current = {
+      pubkey: 'b'.repeat(64),
+      isAuthenticated: true,
+      isLoading: false,
+      signer: undefined,
+      isKeycastLogin: false,
+      logout: vi.fn(),
+    };
+    draftQueryState.current = {
+      data: createPage({
+        title: 'Bob Draft',
+      }),
+      isSuccess: true,
+    };
+
+    rerender();
+
+    await waitFor(() => {
+      expect(result.current.workingDraft?.title).toBe('Bob Draft');
+    });
+    expect(result.current.hasDraftChanges).toBe(false);
+    expect(result.current.canRevertAiChange).toBe(false);
   });
 });

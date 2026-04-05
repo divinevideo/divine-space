@@ -72,9 +72,23 @@ export function PageStudioProvider({ children }: { children: ReactNode }) {
   const [savedDraftSnapshot, setSavedDraftSnapshot] = useState<PageDocument | null>(null);
   const [lastAiSnapshot, setLastAiSnapshot] = useState<PageDocument | null>(null);
   const lastHydratedDraftSnapshot = useRef<string | null>(null);
+  const previousPubkey = useRef<string | undefined>(pubkey);
   const pageIdentifier = draftPage?.identifier ?? draftQuery.data?.identifier ?? 'profile-draft';
   const saveDraftMutation = useUpdateSiteConfig(pageIdentifier);
   const revisionHistory = usePageHistory(pageIdentifier);
+
+  useEffect(() => {
+    if (previousPubkey.current === pubkey) {
+      return;
+    }
+
+    previousPubkey.current = pubkey;
+    bootstrappedPubkey.current = undefined;
+    lastHydratedDraftSnapshot.current = null;
+    setDraftPage(null);
+    setSavedDraftSnapshot(null);
+    setLastAiSnapshot(null);
+  }, [pubkey]);
 
   useEffect(() => {
     if (!pubkey || bootstrappedPubkey.current === pubkey || !draftQuery.isSuccess) {
