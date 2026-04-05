@@ -1,7 +1,11 @@
 import { useSeoMeta } from '@unhead/react';
+import { useSearchParams } from 'react-router-dom';
 import { DMMessagingInterface } from '@/components/dm/DMMessagingInterface';
 
 const Messages = () => {
+  const [searchParams] = useSearchParams();
+  const initialPubkey = searchParams.get('with');
+
   useSeoMeta({
     title: 'Messages',
     description: 'Private encrypted messaging on Nostr',
@@ -15,7 +19,7 @@ const Messages = () => {
           <h1 className="text-2xl font-semibold">Messages</h1>
         </div>
 
-        <DMMessagingInterface className="flex-1" />
+        <DMMessagingInterface className="flex-1" initialPubkey={initialPubkey} />
       </div>
     </div>
   );

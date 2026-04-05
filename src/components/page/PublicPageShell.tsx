@@ -5,9 +5,11 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { PublicPageActions } from './PublicPageActions';
 
 export interface PublicPageShellProps {
   page: PageDocument;
+  pubkey: string;
   children: ReactNode;
   className?: string;
 }
@@ -30,7 +32,7 @@ function getDomainLabel(page: PageDocument): string {
   }
 }
 
-export function PublicPageShell({ page, children, className }: PublicPageShellProps) {
+export function PublicPageShell({ page, pubkey, children, className }: PublicPageShellProps) {
   const title = getPageTitle(page);
   const summary = getPageSummary(page);
   const domainLabel = getDomainLabel(page);
@@ -94,6 +96,8 @@ export function PublicPageShell({ page, children, className }: PublicPageShellPr
                 </div>
               </CardContent>
             </Card>
+
+            <PublicPageActions page={page} pubkey={pubkey} />
           </aside>
 
           <section className="min-w-0">

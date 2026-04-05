@@ -12,7 +12,7 @@ export function PublicPageRenderer({ page, pubkey }: PublicPageRendererProps) {
   const layout = createSidebarBentoLayout(page.widgets, page.gridCols ?? 4, 150);
 
   return (
-    <PublicPageShell page={page}>
+    <PublicPageShell page={page} pubkey={pubkey}>
       <BentoGrid layout={layout} pubkey={pubkey} />
     </PublicPageShell>
   );
