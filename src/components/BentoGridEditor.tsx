@@ -2,7 +2,6 @@ import { useState, useMemo, useCallback } from 'react';
 import GridLayout, {
   WidthProvider as RGLWidthProvider,
   type Layout as GridLayoutItems,
-  type LayoutItem as GridLayoutItem,
 } from 'react-grid-layout/legacy';
 import { Plus, X, User, Users, Music, Link, Video, Smile, Image, MessageSquare, ExternalLink, Type, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
