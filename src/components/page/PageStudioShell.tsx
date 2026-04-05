@@ -22,10 +22,6 @@ function getTitle(page?: PageDocument | null): string {
   return page?.title || page?.name || 'Untitled page';
 }
 
-function getSummary(page?: PageDocument | null): string | undefined {
-  return page?.summary?.trim() || undefined;
-}
-
 export function PageStudioShell({
   page,
   pubkey,
@@ -38,7 +34,6 @@ export function PageStudioShell({
   className,
 }: PageStudioShellProps) {
   const title = getTitle(page);
-  const summary = getSummary(page);
   const hasDraft = !!page;
 
   return (
@@ -51,37 +46,17 @@ export function PageStudioShell({
       )}
     >
       <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
-        <header className="rounded-3xl border border-border/60 bg-card/90 px-5 py-5 shadow-sm backdrop-blur">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-            <div className="space-y-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="secondary" className="uppercase tracking-wide">
-                  <Sparkles className="mr-1 h-3 w-3" />
-                  Studio
-                </Badge>
-                <Badge variant="outline" className="font-mono text-[10px]">
-                  {page?.identifier ?? 'profile-draft'}
-                </Badge>
-              </div>
-
-              <div className="space-y-1">
-                <h1 className="text-2xl font-semibold tracking-tight">Page studio</h1>
-                <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-                  Edit your hosted page on one canvas, save draft changes, and publish when you're ready.
-                </p>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                <span className="font-medium text-foreground">{title}</span>
-                {summary ? <span aria-hidden="true">•</span> : null}
-                {summary ? <span>{summary}</span> : null}
-                {!hasDraft ? (
-                  <>
-                    <span aria-hidden="true">•</span>
-                    <span>Starter content will appear once the draft is created.</span>
-                  </>
-                ) : null}
-              </div>
+        <header className="rounded-3xl border border-border/60 bg-card/85 px-4 py-4 shadow-sm backdrop-blur">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="secondary" className="uppercase tracking-wide">
+                <Sparkles className="mr-1 h-3 w-3" />
+                Studio
+              </Badge>
+              <Badge variant="outline" className="font-mono text-[10px]">
+                {page?.identifier ?? 'profile-draft'}
+              </Badge>
+              <span className="text-sm font-medium text-foreground">{title}</span>
             </div>
 
             <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row lg:justify-end">
