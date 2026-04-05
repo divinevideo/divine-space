@@ -6,7 +6,7 @@
  * support Ghost theme ecosystem compatibility.
  */
 
-import type { Widget, WidgetType } from '@/types/widgets';
+import type { Widget } from '@/types/widgets';
 
 export type { Widget, WidgetType } from '@/types/widgets';
 

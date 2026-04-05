@@ -33,7 +33,6 @@ import { siteConfigToTags } from '@/lib/parseSiteConfig';
 import type { SiteConfigInput } from '@/types/site';
 import { useSiteConfig } from './useSiteConfig';
 import {
-  useDraftPageDocument,
   useEnsureStarterDraft,
   usePublishedPageDocument,
   usePublishPageDocument,
