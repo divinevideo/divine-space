@@ -11,7 +11,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { appendWidgetToLayout } from '@/lib/pageStudioWidgets';
 import { createSidebarBentoLayout } from '@/lib/sidebarBentoLayout';
 import { getMaxSize, getMinSize } from '@/lib/widgetRegistry';
-import type { PageDocument } from '@/types/page';
 import type { PageRevision } from '@/types/pageHistory';
 import type { BentoLayout, Widget, WidgetType } from '@/types/widgets';
 import { usePageStudioController } from '@/pages/pageStudio/PageStudioProvider';
