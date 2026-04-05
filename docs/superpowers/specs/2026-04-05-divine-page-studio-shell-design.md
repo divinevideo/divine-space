@@ -105,6 +105,15 @@ Primary interactions:
 - use `Add Widget` from the top bar to insert new blocks
 - use the inspector only when deeper controls are needed
 
+Inspector behavior should be stable:
+
+- selecting a different widget swaps the inspector content in place
+- on desktop, the inspector does not fully replace the canvas
+- the page remains visible while the inspector is open
+- dragging or resizing the selected widget updates the same draft while the inspector stays open
+
+The inspector is temporary support chrome, not a separate editing mode.
+
 This creates a clear hierarchy:
 
 1. page
@@ -131,6 +140,14 @@ The insertion flow should feel like “add something to my page,” not “manag
 Manual editing should not permanently display those controls.
 
 `/studio/page` can link to `/studio/ai`, but it should not embed the copilot panel by default.
+
+AI and manual editing still operate on the same draft document:
+
+- `/studio/ai` reads the current draft
+- accepted AI changes write back into that same draft
+- returning to `/studio/page` shows those draft changes immediately
+
+This is a route split, not a data-model split.
 
 ## History and Recovery
 
