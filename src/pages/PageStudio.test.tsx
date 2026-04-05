@@ -214,7 +214,7 @@ describe('PageStudio', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId('bento-grid')).toBeInTheDocument();
+      expect(screen.getByTestId('bento-grid-editor')).toBeInTheDocument();
     });
 
     expect(ensureStarterDraft).not.toHaveBeenCalled();
@@ -255,7 +255,7 @@ describe('PageStudio', () => {
     });
   });
 
-  it('shows draft preview and publish controls', async () => {
+  it('renders the manual canvas shell without preview, copilot, or history panels', async () => {
     draftPage.current = {
       identifier: 'profile-draft',
       shell: { type: 'sidebar-bento' },
@@ -274,8 +274,9 @@ describe('PageStudio', () => {
     expect(await screen.findByRole('button', { name: /publish/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /save draft/i })).toBeInTheDocument();
     expect(screen.getByTestId('bento-grid-editor')).toBeInTheDocument();
-    expect(screen.getByTestId('bento-grid')).toBeInTheDocument();
-    expect(screen.getByTestId('page-copilot-panel')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /preview/i })).not.toBeInTheDocument();
+    expect(screen.queryByTestId('page-copilot-panel')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('page-revision-history')).not.toBeInTheDocument();
   });
 
   it('saves draft edits before publishing', async () => {
@@ -290,73 +291,6 @@ describe('PageStudio', () => {
 
     await waitFor(() => {
       expect(updateDraft).toHaveBeenCalled();
-      expect(publishDraft).toHaveBeenCalled();
-    });
-  });
-
-  it('applies and reverts AI draft changes', async () => {
-    render(
-      <TestApp>
-        <PageStudio />
-      </TestApp>
-    );
-
-    expect(screen.getAllByText('My Page').length).toBeGreaterThan(0);
-
-    fireEvent.click(screen.getByRole('button', { name: /apply ai suggestion/i }));
-
-    await waitFor(() => {
-      expect(screen.getAllByText('AI Creator Home').length).toBeGreaterThan(0);
-    });
-    expect(screen.getByTestId('page-copilot-panel')).toHaveAttribute('data-can-revert', 'yes');
-
-    fireEvent.click(screen.getByRole('button', { name: /revert ai suggestion/i }));
-
-    await waitFor(() => {
-      expect(screen.getAllByText('My Page').length).toBeGreaterThan(0);
-    });
-    expect(screen.getByTestId('page-copilot-panel')).toHaveAttribute('data-can-revert', 'no');
-  });
-
-  it('disables AI revert after a later manual edit', async () => {
-    render(
-      <TestApp>
-        <PageStudio />
-      </TestApp>
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: /apply ai suggestion/i }));
-
-    await waitFor(() => {
-      expect(screen.getByTestId('page-copilot-panel')).toHaveAttribute('data-can-revert', 'yes');
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: /simulate editor change/i }));
-
-    await waitFor(() => {
-      expect(screen.getByTestId('page-copilot-panel')).toHaveAttribute('data-can-revert', 'no');
-    });
-  });
-
-  it('saves AI draft edits before publishing', async () => {
-    render(
-      <TestApp>
-        <PageStudio />
-      </TestApp>
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: /apply ai suggestion/i }));
-    fireEvent.click(screen.getByRole('button', { name: /publish/i }));
-
-    await waitFor(() => {
-      expect(updateDraft).toHaveBeenCalledWith(
-        expect.objectContaining({
-          title: 'AI Creator Home',
-          widgets: expect.arrayContaining([
-            expect.objectContaining({ type: 'text' }),
-          ]),
-        })
-      );
       expect(publishDraft).toHaveBeenCalled();
     });
   });
@@ -420,37 +354,6 @@ describe('PageStudio', () => {
       );
       expect(publishDraft).toHaveBeenCalled();
     });
-  });
-
-  it('restores a saved revision into the working draft without publishing', async () => {
-    revisions.current = [
-      {
-        id: 'rev-1',
-        createdAt: 123,
-        source: 'save-draft',
-        pageIdentifier: 'profile-draft',
-        page: {
-          identifier: 'profile-draft',
-          shell: { type: 'sidebar-bento' },
-          includes: [],
-          widgets: [],
-          title: 'Restored Home',
-        },
-      },
-    ];
-
-    render(
-      <TestApp>
-        <PageStudio />
-      </TestApp>
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: /restore restored home/i }));
-
-    await waitFor(() => {
-      expect(screen.getAllByText('Restored Home').length).toBeGreaterThan(0);
-    });
-    expect(publishDraft).not.toHaveBeenCalled();
   });
 
   it('redirects authenticated profile settings to the studio', () => {

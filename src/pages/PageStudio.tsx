@@ -2,19 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import { useSeoMeta } from '@unhead/react';
 import { BentoGridEditor } from '@/components/BentoGridEditor';
 import { Layout } from '@/components/Layout';
-import { PageCopilotPanel } from '@/components/page/PageCopilotPanel';
 import { PageStudioShell } from '@/components/page/PageStudioShell';
-import { PagePreview } from '@/components/page/PagePreview';
-import { PageRevisionHistory } from '@/components/page/PageRevisionHistory';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/useToast';
 import { useUpdateSiteConfig } from '@/hooks/useSiteConfig';
 import { usePageHistory } from '@/hooks/usePageHistory';
-import { applyPageCopilotSuggestion } from '@/lib/pageCopilot';
 import { createSidebarBentoLayout } from '@/lib/sidebarBentoLayout';
 import type { PageDocument } from '@/types/page';
-import type { PageCopilotSuggestion } from '@/types/pageCopilot';
-import type { PageRevision } from '@/types/pageHistory';
 import type { SiteConfigInput } from '@/types/site';
 import type { BentoLayout } from '@/types/widgets';
 import {
@@ -52,7 +46,6 @@ export default function PageStudio() {
   const bootstrappedPubkey = useRef<string | undefined>(undefined);
   const [draftPage, setDraftPage] = useState<PageDocument | null>(null);
   const [savedDraftSnapshot, setSavedDraftSnapshot] = useState<PageDocument | null>(null);
-  const [lastAiSnapshot, setLastAiSnapshot] = useState<PageDocument | null>(null);
   const pageIdentifier = draftPage?.identifier ?? draftQuery.data?.identifier ?? 'profile-draft';
   const saveDraft = useUpdateSiteConfig(pageIdentifier);
   const revisionHistory = usePageHistory(pageIdentifier);
@@ -80,7 +73,6 @@ export default function PageStudio() {
 
     setDraftPage(draftQuery.data);
     setSavedDraftSnapshot(draftQuery.data);
-    setLastAiSnapshot(null);
   }, [draftQuery.data]);
 
   const workingDraft = draftPage ?? draftQuery.data ?? null;
@@ -99,25 +91,6 @@ export default function PageStudio() {
         widgets: layout.widgets,
       };
     });
-    setLastAiSnapshot(null);
-  };
-
-  const handleApplySuggestion = (suggestion: PageCopilotSuggestion) => {
-    if (!workingDraft) {
-      return;
-    }
-
-    setLastAiSnapshot(workingDraft);
-    setDraftPage(applyPageCopilotSuggestion(workingDraft, suggestion));
-  };
-
-  const handleRevertAiChange = () => {
-    if (!lastAiSnapshot) {
-      return;
-    }
-
-    setDraftPage(lastAiSnapshot);
-    setLastAiSnapshot(null);
   };
 
   const handleSaveDraft = async () => {
@@ -165,11 +138,6 @@ export default function PageStudio() {
     await publishDraft.mutateAsync();
   };
 
-  const handleRestoreSavedRevision = (revision: PageRevision) => {
-    setDraftPage(revision.page);
-    setLastAiSnapshot(null);
-  };
-
   const editorLayout = createSidebarBentoLayout(
     workingDraft?.widgets ?? [],
     workingDraft?.gridCols ?? 4,
@@ -191,7 +159,7 @@ export default function PageStudio() {
         }}
         isPublishing={publishDraft.isPending}
       >
-        <div className="grid gap-6 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_360px]">
+        {workingDraft ? (
           <section className="space-y-3">
             <div>
               <h2 className="text-lg font-semibold tracking-tight">Edit Draft</h2>
@@ -199,48 +167,13 @@ export default function PageStudio() {
                 Drag, resize, add, or remove widgets in your hosted page draft.
               </p>
             </div>
-            {workingDraft ? (
-              <BentoGridEditor
-                layout={editorLayout}
-                pubkey={pubkey ?? ''}
-                onChange={handleEditorChange}
-              />
-            ) : null}
-          </section>
-
-          <section className="space-y-3">
-            <div>
-              <h2 className="text-lg font-semibold tracking-tight">Preview</h2>
-              <p className="text-sm text-muted-foreground">
-                This preview uses the same renderer as the published hosted page.
-              </p>
-            </div>
-            <PagePreview page={workingDraft} pubkey={pubkey} />
-          </section>
-
-          <div className="space-y-6 2xl:self-start">
-            <section className="space-y-3">
-              <div>
-                <h2 className="text-lg font-semibold tracking-tight">Copilot</h2>
-                <p className="text-sm text-muted-foreground">
-                  Generate structured draft changes, inspect them, then apply them to your page.
-                </p>
-              </div>
-              <PageCopilotPanel
-                page={workingDraft}
-                onApply={handleApplySuggestion}
-                onRevert={handleRevertAiChange}
-                canRevert={!!lastAiSnapshot}
-              />
-            </section>
-
-            <PageRevisionHistory
-              revisions={revisionHistory.revisions}
-              isLoading={revisionHistory.isLoading}
-              onRestore={handleRestoreSavedRevision}
+            <BentoGridEditor
+              layout={editorLayout}
+              pubkey={pubkey ?? ''}
+              onChange={handleEditorChange}
             />
-          </div>
-        </div>
+          </section>
+        ) : null}
       </PageStudioShell>
     </Layout>
   );
