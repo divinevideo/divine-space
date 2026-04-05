@@ -350,12 +350,6 @@ export default function Profile({ pubkey, isSubdomain, subdomain }: ProfileProps
                 </div>
               </div>
 
-              {/* Mood & Status - MySpace style! */}
-              <div className="mt-4 space-y-2">
-                <MoodWidget mood={myspaceProfile?.mood} />
-                <StatusWidget status={myspaceProfile?.status} />
-              </div>
-
               {/* Bio */}
               {profile.about && (
                 <p className="mt-4 text-muted-foreground max-w-2xl whitespace-pre-wrap">
@@ -380,29 +374,28 @@ export default function Profile({ pubkey, isSubdomain, subdomain }: ProfileProps
           </div>
         </div>
 
-        {/* Profile Music Player - The iconic MySpace feature! */}
-        {myspaceProfile?.music && (
-          <ProfileMusicPlayer 
-            music={myspaceProfile.music} 
-            autoplay={myspaceProfile.autoplay}
-            className="mb-8"
-          />
-        )}
-
-        {/* Music Suggestion for unclaimed profiles */}
-        {isUnclaimedProfile && myspaceProfile?.musicSuggestion && !myspaceProfile?.music && (
-          <div className="mb-8">
-            <MusicSuggestion suggestion={myspaceProfile.musicSuggestion} />
-          </div>
-        )}
-
-        {/* Profile Quote */}
-        <QuoteWidget quote={myspaceProfile?.quote} className="mb-8" />
-
         {/* MySpace-style two-column layout */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
           {/* Left Column - Top 8 Friends & Stats */}
-          <div className="lg:col-span-1 space-y-6">
+          <div className="lg:col-span-1 space-y-6" data-testid="profile-side-rail">
+            <div className="space-y-3">
+              <MoodWidget mood={myspaceProfile?.mood} />
+              <StatusWidget status={myspaceProfile?.status} />
+
+              {myspaceProfile?.music && (
+                <ProfileMusicPlayer
+                  music={myspaceProfile.music}
+                  autoplay={myspaceProfile.autoplay}
+                />
+              )}
+
+              {isUnclaimedProfile && myspaceProfile?.musicSuggestion && !myspaceProfile?.music && (
+                <MusicSuggestion suggestion={myspaceProfile.musicSuggestion} />
+              )}
+
+              <QuoteWidget quote={myspaceProfile?.quote} />
+            </div>
+
             {/* Blinkie decoration */}
             {myspaceProfile?.presetBlinkie && (
               <BlinkieBar 

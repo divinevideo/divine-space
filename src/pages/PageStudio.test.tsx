@@ -1,9 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { createHead, UnheadProvider } from '@unhead/react/client';
+import { NostrLoginProvider } from '@nostrify/react/login';
+import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom';
 import { TestApp } from '@/test/TestApp';
+import NostrProvider from '@/components/NostrProvider';
+import { AppProvider } from '@/components/AppProvider';
+import { NWCProvider } from '@/contexts/NWCContext';
+import type { AppConfig } from '@/contexts/AppContext';
 import type { PageDocument } from '@/types/page';
 import type { PageCopilotSuggestion } from '@/types/pageCopilot';
 import type { PageRevision } from '@/types/pageHistory';
+import { PageStudioProvider } from '@/pages/pageStudio/PageStudioProvider';
+import PageStudioAi from './PageStudioAi';
 import Settings from './Settings';
 import MySpaceSettings from './MySpaceSettings';
 import PageStudio from './PageStudio';
@@ -22,6 +32,9 @@ const {
   createRevision: vi.fn(),
   toast: vi.fn(),
   usePageHistoryMock: vi.fn(),
+}));
+const isMobileState = vi.hoisted(() => ({
+  current: false,
 }));
 const revisions: { current: PageRevision[] } = {
   current: [],
@@ -48,6 +61,62 @@ vi.mock('@/components/Layout', () => ({
   Layout: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="layout">{children}</div>
   ),
+}));
+
+vi.mock('@/components/ui/drawer', () => ({
+  Drawer: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="drawer-surface">{children}</div>
+  ),
+  DrawerContent: ({
+    children,
+    ...props
+  }: {
+    children: React.ReactNode;
+    ['data-testid']?: string;
+  }) => (
+    <div data-testid={props['data-testid'] ?? 'drawer-content'}>
+      {children}
+    </div>
+  ),
+  DrawerHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  DrawerTitle: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  DrawerDescription: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+}));
+
+vi.mock('@/components/ui/sheet', () => ({
+  Sheet: ({
+    children,
+    modal = true,
+  }: {
+    children: React.ReactNode;
+    modal?: boolean;
+  }) => (
+    <div data-testid="sheet-surface" data-modal={modal ? 'true' : 'false'}>
+      {children}
+    </div>
+  ),
+  SheetContent: ({
+    children,
+    modal = true,
+    showOverlay = true,
+    ...props
+  }: {
+    children: React.ReactNode;
+    ['data-testid']?: string;
+    modal?: boolean;
+    showOverlay?: boolean;
+  }) => (
+    <div
+      data-testid={props['data-testid'] ?? 'sheet-content'}
+      data-modal={modal ? 'true' : 'false'}
+    >
+      {modal && showOverlay ? <div data-testid="sheet-overlay" /> : null}
+      {children}
+    </div>
+  ),
+  SheetHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  SheetTitle: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  SheetDescription: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
 vi.mock('react-router-dom', async () => {
@@ -81,6 +150,10 @@ vi.mock('@/contexts/KeycastContext', () => ({
     pubkey: 'a'.repeat(64),
     isAuthenticated: true,
   })),
+}));
+
+vi.mock('@/hooks/useIsMobile', () => ({
+  useIsMobile: vi.fn(() => isMobileState.current),
 }));
 
 vi.mock('@/hooks/usePageDocument', () => ({
@@ -123,8 +196,45 @@ vi.mock('@/hooks/useToast', () => ({
 }));
 
 vi.mock('@/components/BentoGridEditor', () => ({
-  BentoGridEditor: ({ onChange }: { onChange: (layout: { type: 'bento'; gridCols: number; rowHeight: number; widgets: Array<{ id: string; type: 'profile'; x: number; y: number; w: number; h: number }> }) => void }) => (
-    <div data-testid="bento-grid-editor">
+  BentoGridEditor: ({
+    layout,
+    onChange,
+    selectedWidgetId,
+    onSelectWidget,
+  }: {
+    layout: {
+      type: 'bento';
+      gridCols: number;
+      rowHeight: number;
+      widgets: Array<{ id: string; type: 'profile'; x: number; y: number; w: number; h: number }>;
+    };
+    onChange: (layout: {
+      type: 'bento';
+      gridCols: number;
+      rowHeight: number;
+      widgets: Array<{ id: string; type: 'profile'; x: number; y: number; w: number; h: number }>;
+    }) => void;
+    selectedWidgetId?: string;
+    onSelectWidget?: (widgetId: string) => void;
+  }) => (
+    <div data-testid="bento-grid-editor" data-widget-count={layout.widgets.length}>
+      <div data-testid="editor-widget-count">{layout.widgets.length}</div>
+      <div data-testid="editor-widget-ids">{layout.widgets.map((widget) => widget.id).join(',')}</div>
+      {layout.widgets.map((widget) => (
+        <button
+          key={widget.id}
+          type="button"
+          data-testid={`widget-${widget.id}`}
+          data-x={widget.x}
+          data-y={widget.y}
+          data-w={widget.w}
+          data-h={widget.h}
+          data-selected={selectedWidgetId === widget.id ? 'yes' : 'no'}
+          onClick={() => onSelectWidget?.(widget.id)}
+        >
+          {widget.type} widget
+        </button>
+      ))}
       <button
         type="button"
         onClick={() => onChange({
@@ -188,6 +298,7 @@ vi.mock('@/components/page/PageRevisionHistory', () => ({
 describe('PageStudio', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    isMobileState.current = false;
     usePageHistoryMock.mockImplementation(() => ({
       revisions: revisions.current,
       createRevision: {
@@ -206,15 +317,79 @@ describe('PageStudio', () => {
     revisions.current = [];
   });
 
-  it('does not create a starter draft when one already exists', async () => {
-    render(
+  function renderPageStudio() {
+    return render(
       <TestApp>
-        <PageStudio />
+        <PageStudioProvider>
+          <PageStudio />
+        </PageStudioProvider>
       </TestApp>
     );
+  }
+
+  function renderSharedStudioRoutes(initialPath: string) {
+    const head = createHead();
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+    const defaultConfig: AppConfig = {
+      theme: 'light',
+      relayMetadata: {
+        relays: [
+          { url: 'wss://relay.primal.net', read: true, write: true },
+        ],
+        updatedAt: 0,
+      },
+    };
+
+    return render(
+      <UnheadProvider head={head}>
+        <AppProvider storageKey='test-app-config' defaultConfig={defaultConfig}>
+          <QueryClientProvider client={queryClient}>
+            <NostrLoginProvider storageKey='test-login'>
+              <NostrProvider>
+                <NWCProvider>
+                  <MemoryRouter initialEntries={[initialPath]}>
+                    <PageStudioProvider>
+                      <StudioRouteControls />
+                      <Routes>
+                        <Route path="/studio/page" element={<PageStudio />} />
+                        <Route path="/studio/ai" element={<PageStudioAi />} />
+                      </Routes>
+                    </PageStudioProvider>
+                  </MemoryRouter>
+                </NWCProvider>
+              </NostrProvider>
+            </NostrLoginProvider>
+          </QueryClientProvider>
+        </AppProvider>
+      </UnheadProvider>
+    );
+  }
+
+  function StudioRouteControls() {
+    const navigate = useNavigate();
+
+    return (
+      <div data-testid="studio-route-controls">
+        <button type="button" onClick={() => navigate('/studio/page')}>
+          Go to page route
+        </button>
+        <button type="button" onClick={() => navigate('/studio/ai')}>
+          Go to ai route
+        </button>
+      </div>
+    );
+  }
+
+  it('does not create a starter draft when one already exists', async () => {
+    renderPageStudio();
 
     await waitFor(() => {
-      expect(screen.getByTestId('bento-grid')).toBeInTheDocument();
+      expect(screen.getByTestId('bento-grid-editor')).toBeInTheDocument();
     });
 
     expect(ensureStarterDraft).not.toHaveBeenCalled();
@@ -230,11 +405,7 @@ describe('PageStudio', () => {
       summary: 'Draft page preview',
     };
 
-    render(
-      <TestApp>
-        <PageStudio />
-      </TestApp>
-    );
+    renderPageStudio();
 
     await waitFor(() => {
       expect(usePageHistoryMock).toHaveBeenCalledWith('creator-home-draft');
@@ -244,18 +415,14 @@ describe('PageStudio', () => {
   it('creates a starter draft when the owner has none', async () => {
     draftPage.current = null;
 
-    render(
-      <TestApp>
-        <PageStudio />
-      </TestApp>
-    );
+    renderPageStudio();
 
     await waitFor(() => {
       expect(ensureStarterDraft).toHaveBeenCalled();
     });
   });
 
-  it('shows draft preview and publish controls', async () => {
+  it('renders the manual canvas shell without preview, copilot, or history panels', async () => {
     draftPage.current = {
       identifier: 'profile-draft',
       shell: { type: 'sidebar-bento' },
@@ -265,25 +432,65 @@ describe('PageStudio', () => {
       summary: 'Draft page preview',
     };
 
-    render(
-      <TestApp>
-        <PageStudio />
-      </TestApp>
-    );
+    renderPageStudio();
 
     expect(await screen.findByRole('button', { name: /publish/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /save draft/i })).toBeInTheDocument();
     expect(screen.getByTestId('bento-grid-editor')).toBeInTheDocument();
-    expect(screen.getByTestId('bento-grid')).toBeInTheDocument();
-    expect(screen.getByTestId('page-copilot-panel')).toBeInTheDocument();
+    expect(screen.queryByText('Preview')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('page-copilot-panel')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('page-revision-history')).not.toBeInTheDocument();
+  });
+
+  it('opens revision history from the more actions menu and links to AI', async () => {
+    revisions.current = [
+      {
+        id: 'revision-1',
+        createdAt: 1710000000,
+        source: 'save-draft',
+        pageIdentifier: 'profile-draft',
+        page: {
+          identifier: 'profile-draft',
+          shell: { type: 'sidebar-bento' },
+          includes: [],
+          widgets: [
+            { id: 'profile-1', type: 'profile', x: 0, y: 0, w: 2, h: 2 },
+          ],
+          title: 'Restored draft',
+          summary: 'Revision restored from history',
+        },
+      },
+    ];
+
+    renderPageStudio();
+
+    expect(screen.queryByTestId('page-revision-history')).not.toBeInTheDocument();
+
+    fireEvent.pointerDown(screen.getByRole('button', { name: /more actions/i }));
+    fireEvent.click(screen.getByRole('button', { name: /more actions/i }));
+
+    expect(
+      await screen.findByRole('menuitem', { name: /revision history/i })
+    ).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /generate with ai/i })).toHaveAttribute(
+      'href',
+      '/studio/ai'
+    );
+
+    fireEvent.click(screen.getByRole('menuitem', { name: /revision history/i }));
+
+    expect(await screen.findByTestId('page-revision-history')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /restore restored draft/i }));
+
+    expect(await screen.findByTestId('editor-widget-count')).toHaveTextContent('1');
+    await waitFor(() => {
+      expect(screen.queryByTestId('page-revision-history')).not.toBeInTheDocument();
+    });
   });
 
   it('saves draft edits before publishing', async () => {
-    render(
-      <TestApp>
-        <PageStudio />
-      </TestApp>
-    );
+    renderPageStudio();
 
     fireEvent.click(screen.getByRole('button', { name: /simulate editor change/i }));
     fireEvent.click(screen.getByRole('button', { name: /publish/i }));
@@ -294,79 +501,8 @@ describe('PageStudio', () => {
     });
   });
 
-  it('applies and reverts AI draft changes', async () => {
-    render(
-      <TestApp>
-        <PageStudio />
-      </TestApp>
-    );
-
-    expect(screen.getAllByText('My Page').length).toBeGreaterThan(0);
-
-    fireEvent.click(screen.getByRole('button', { name: /apply ai suggestion/i }));
-
-    await waitFor(() => {
-      expect(screen.getAllByText('AI Creator Home').length).toBeGreaterThan(0);
-    });
-    expect(screen.getByTestId('page-copilot-panel')).toHaveAttribute('data-can-revert', 'yes');
-
-    fireEvent.click(screen.getByRole('button', { name: /revert ai suggestion/i }));
-
-    await waitFor(() => {
-      expect(screen.getAllByText('My Page').length).toBeGreaterThan(0);
-    });
-    expect(screen.getByTestId('page-copilot-panel')).toHaveAttribute('data-can-revert', 'no');
-  });
-
-  it('disables AI revert after a later manual edit', async () => {
-    render(
-      <TestApp>
-        <PageStudio />
-      </TestApp>
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: /apply ai suggestion/i }));
-
-    await waitFor(() => {
-      expect(screen.getByTestId('page-copilot-panel')).toHaveAttribute('data-can-revert', 'yes');
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: /simulate editor change/i }));
-
-    await waitFor(() => {
-      expect(screen.getByTestId('page-copilot-panel')).toHaveAttribute('data-can-revert', 'no');
-    });
-  });
-
-  it('saves AI draft edits before publishing', async () => {
-    render(
-      <TestApp>
-        <PageStudio />
-      </TestApp>
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: /apply ai suggestion/i }));
-    fireEvent.click(screen.getByRole('button', { name: /publish/i }));
-
-    await waitFor(() => {
-      expect(updateDraft).toHaveBeenCalledWith(
-        expect.objectContaining({
-          title: 'AI Creator Home',
-          widgets: expect.arrayContaining([
-            expect.objectContaining({ type: 'text' }),
-          ]),
-        })
-      );
-      expect(publishDraft).toHaveBeenCalled();
-    });
-  });
-
   it('creates a revision before saving the draft', async () => {
-    render(
-      <TestApp>
-        <PageStudio />
-      </TestApp>
-    );
+    renderPageStudio();
 
     fireEvent.click(screen.getByRole('button', { name: /simulate editor change/i }));
     fireEvent.click(screen.getByRole('button', { name: /save draft/i }));
@@ -384,11 +520,7 @@ describe('PageStudio', () => {
   it('warns when revision history fails during save but still saves the draft', async () => {
     createRevision.mockRejectedValueOnce(new Error('history failed'));
 
-    render(
-      <TestApp>
-        <PageStudio />
-      </TestApp>
-    );
+    renderPageStudio();
 
     fireEvent.click(screen.getByRole('button', { name: /simulate editor change/i }));
     fireEvent.click(screen.getByRole('button', { name: /save draft/i }));
@@ -406,11 +538,7 @@ describe('PageStudio', () => {
   });
 
   it('creates a publish revision before publishing', async () => {
-    render(
-      <TestApp>
-        <PageStudio />
-      </TestApp>
-    );
+    renderPageStudio();
 
     fireEvent.click(screen.getByRole('button', { name: /publish/i }));
 
@@ -420,37 +548,6 @@ describe('PageStudio', () => {
       );
       expect(publishDraft).toHaveBeenCalled();
     });
-  });
-
-  it('restores a saved revision into the working draft without publishing', async () => {
-    revisions.current = [
-      {
-        id: 'rev-1',
-        createdAt: 123,
-        source: 'save-draft',
-        pageIdentifier: 'profile-draft',
-        page: {
-          identifier: 'profile-draft',
-          shell: { type: 'sidebar-bento' },
-          includes: [],
-          widgets: [],
-          title: 'Restored Home',
-        },
-      },
-    ];
-
-    render(
-      <TestApp>
-        <PageStudio />
-      </TestApp>
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: /restore restored home/i }));
-
-    await waitFor(() => {
-      expect(screen.getAllByText('Restored Home').length).toBeGreaterThan(0);
-    });
-    expect(publishDraft).not.toHaveBeenCalled();
   });
 
   it('redirects authenticated profile settings to the studio', () => {
@@ -471,5 +568,259 @@ describe('PageStudio', () => {
     );
 
     expect(screen.getByTestId('navigate')).toHaveAttribute('data-to', '/studio/page');
+  });
+
+  it('renders add widget in the shell header and appends a widget through the route menu', async () => {
+    renderPageStudio();
+
+    const banner = screen.getByRole('banner');
+    const topBar = within(banner);
+    expect(topBar.getByRole('button', { name: /add widget/i })).toBeInTheDocument();
+
+    expect(screen.getByTestId('editor-widget-count')).toHaveTextContent('0');
+
+    fireEvent.click(topBar.getByRole('button', { name: /add widget/i }));
+    fireEvent.click(await screen.findByTestId('add-widget-profile'));
+
+    expect(await screen.findByTestId('editor-widget-count')).toHaveTextContent('1');
+    expect(screen.getByTestId('editor-widget-ids')).toHaveTextContent(/profile-/);
+  });
+
+  it('disables AI revert after a manual widget addition', async () => {
+    renderSharedStudioRoutes('/studio/ai');
+
+    expect(screen.getByTestId('page-copilot-panel')).toHaveAttribute('data-can-revert', 'no');
+
+    fireEvent.click(screen.getByRole('button', { name: /apply ai suggestion/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('page-copilot-panel')).toHaveAttribute('data-can-revert', 'yes');
+    });
+
+    fireEvent.click(screen.getByRole('link', { name: /back to page editor/i }));
+
+    const banner = await screen.findByRole('banner');
+    fireEvent.click(within(banner).getByRole('button', { name: /add widget/i }));
+    fireEvent.click(await screen.findByTestId('add-widget-profile'));
+
+    fireEvent.click(screen.getByRole('button', { name: /go to ai route/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('page-copilot-panel')).toHaveAttribute('data-can-revert', 'no');
+    });
+    expect(screen.getByRole('button', { name: /revert ai suggestion/i })).toBeDisabled();
+  });
+
+  it('keeps the same draft across navigation from the AI route back to the page editor', async () => {
+    renderSharedStudioRoutes('/studio/ai');
+
+    fireEvent.click(screen.getByRole('button', { name: /apply ai suggestion/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('page-copilot-panel')).toHaveAttribute('data-can-revert', 'yes');
+    });
+
+    fireEvent.click(screen.getByRole('link', { name: /back to page editor/i }));
+
+    expect(await screen.findByText('AI Creator Home')).toBeInTheDocument();
+    expect(screen.getByTestId('editor-widget-count')).toHaveTextContent('1');
+  });
+
+  it('opens the temporary inspector when a widget is selected and closes it on dismiss', async () => {
+    draftPage.current = {
+      identifier: 'profile-draft',
+      shell: { type: 'sidebar-bento' },
+      includes: [],
+      widgets: [
+        { id: 'profile-1', type: 'profile', x: 0, y: 0, w: 2, h: 2 },
+      ],
+      title: 'My Page',
+      summary: 'Draft page preview',
+    };
+
+    renderPageStudio();
+
+    fireEvent.click(await screen.findByTestId('widget-profile-1'));
+
+    const inspector = await screen.findByTestId('page-studio-inspector');
+    expect(inspector).toBeInTheDocument();
+    expect(within(inspector).getByText(/profile widget/i)).toBeVisible();
+
+    fireEvent.click(screen.getByRole('button', { name: /close inspector/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('page-studio-inspector')).not.toBeInTheDocument();
+    });
+  });
+
+  it('updates the editor route state when inspector layout fields change', async () => {
+    draftPage.current = {
+      identifier: 'profile-draft',
+      shell: { type: 'sidebar-bento' },
+      includes: [],
+      widgets: [
+        { id: 'profile-1', type: 'profile', x: 1.2, y: 2.7, w: 2.4, h: 2.6 },
+      ],
+      title: 'My Page',
+      summary: 'Draft page preview',
+    };
+
+    renderPageStudio();
+
+    fireEvent.click(await screen.findByTestId('widget-profile-1'));
+
+    const inspector = await screen.findByTestId('page-studio-inspector');
+    fireEvent.change(within(inspector).getByRole('spinbutton', { name: 'X' }), {
+      target: { value: '2.7' },
+    });
+
+    expect(screen.getByTestId('widget-profile-1')).toHaveAttribute('data-x', '2');
+    expect(screen.getByTestId('widget-profile-1')).toHaveAttribute('data-y', '3');
+    expect(screen.getByTestId('widget-profile-1')).toHaveAttribute('data-w', '2');
+    expect(screen.getByTestId('widget-profile-1')).toHaveAttribute('data-h', '3');
+  });
+
+  it('clamps inspector geometry before saving draft', async () => {
+    draftPage.current = {
+      identifier: 'profile-draft',
+      shell: { type: 'sidebar-bento' },
+      includes: [],
+      widgets: [
+        { id: 'profile-1', type: 'profile', x: 1.2, y: 2.7, w: 2.4, h: 2.6 },
+      ],
+      title: 'My Page',
+      summary: 'Draft page preview',
+    };
+
+    renderPageStudio();
+
+    fireEvent.click(await screen.findByTestId('widget-profile-1'));
+
+    const inspector = await screen.findByTestId('page-studio-inspector');
+    fireEvent.change(within(inspector).getByRole('spinbutton', { name: 'Y' }), {
+      target: { value: '-5.2' },
+    });
+    fireEvent.change(within(inspector).getByRole('spinbutton', { name: 'Width' }), {
+      target: { value: '3.8' },
+    });
+
+    expect(screen.getByTestId('widget-profile-1')).toHaveAttribute('data-y', '0');
+    expect(screen.getByTestId('widget-profile-1')).toHaveAttribute('data-w', '4');
+    expect(screen.getByTestId('widget-profile-1')).toHaveAttribute('data-x', '0');
+    expect(screen.getByTestId('widget-profile-1')).toHaveAttribute('data-h', '3');
+
+    fireEvent.click(screen.getByRole('button', { name: /save draft/i }));
+
+    await waitFor(() => {
+      expect(updateDraft).toHaveBeenCalledWith(
+        expect.objectContaining({
+          widgets: [
+            expect.objectContaining({
+              id: 'profile-1',
+              x: 0,
+              y: 0,
+              w: 4,
+              h: 3,
+            }),
+          ],
+        })
+      );
+    });
+  });
+
+  it('renders the desktop inspector surface when not mobile', async () => {
+    isMobileState.current = false;
+
+    draftPage.current = {
+      identifier: 'profile-draft',
+      shell: { type: 'sidebar-bento' },
+      includes: [],
+      widgets: [
+        { id: 'profile-1', type: 'profile', x: 0, y: 0, w: 2, h: 2 },
+      ],
+      title: 'My Page',
+      summary: 'Draft page preview',
+    };
+
+    renderPageStudio();
+
+    fireEvent.click(await screen.findByTestId('widget-profile-1'));
+
+    expect(await screen.findByTestId('sheet-surface')).toBeInTheDocument();
+    expect(screen.queryByTestId('sheet-overlay')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('drawer-surface')).not.toBeInTheDocument();
+  });
+
+  it('renders the mobile inspector surface when mobile', async () => {
+    isMobileState.current = true;
+
+    draftPage.current = {
+      identifier: 'profile-draft',
+      shell: { type: 'sidebar-bento' },
+      includes: [],
+      widgets: [
+        { id: 'profile-1', type: 'profile', x: 0, y: 0, w: 2, h: 2 },
+      ],
+      title: 'My Page',
+      summary: 'Draft page preview',
+    };
+
+    renderPageStudio();
+
+    fireEvent.click(await screen.findByTestId('widget-profile-1'));
+
+    expect(await screen.findByTestId('drawer-surface')).toBeInTheDocument();
+    expect(screen.queryByTestId('sheet-surface')).not.toBeInTheDocument();
+  });
+
+  it('keeps the desktop canvas active while the inspector stays open', async () => {
+    draftPage.current = {
+      identifier: 'profile-draft',
+      shell: { type: 'sidebar-bento' },
+      includes: [],
+      widgets: [
+        { id: 'profile-1', type: 'profile', x: 0, y: 0, w: 2, h: 2 },
+        { id: 'profile-2', type: 'profile', x: 2, y: 0, w: 2, h: 2 },
+      ],
+      title: 'My Page',
+      summary: 'Draft page preview',
+    };
+
+    renderPageStudio();
+
+    fireEvent.click(await screen.findByTestId('widget-profile-1'));
+
+    const inspector = await screen.findByTestId('page-studio-inspector');
+    expect(within(inspector).getByText(/profile widget/i)).toBeVisible();
+    expect(screen.queryByTestId('sheet-overlay')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('widget-profile-2'));
+
+    expect(screen.getByTestId('widget-profile-1')).toHaveAttribute('data-selected', 'no');
+    expect(screen.getByTestId('widget-profile-2')).toHaveAttribute('data-selected', 'yes');
+    expect(within(screen.getByTestId('page-studio-inspector')).getByText(/profile widget/i)).toBeVisible();
+  });
+
+  it('removes the selected widget from the inspector and closes the surface', async () => {
+    draftPage.current = {
+      identifier: 'profile-draft',
+      shell: { type: 'sidebar-bento' },
+      includes: [],
+      widgets: [
+        { id: 'profile-1', type: 'profile', x: 0, y: 0, w: 2, h: 2 },
+      ],
+      title: 'My Page',
+      summary: 'Draft page preview',
+    };
+
+    renderPageStudio();
+
+    fireEvent.click(await screen.findByTestId('widget-profile-1'));
+    fireEvent.click(screen.getByRole('button', { name: /remove widget/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('page-studio-inspector')).not.toBeInTheDocument();
+      expect(screen.getByTestId('editor-widget-count')).toHaveTextContent('0');
+    });
   });
 });

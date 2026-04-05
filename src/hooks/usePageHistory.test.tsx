@@ -14,11 +14,16 @@ vi.mock('./useCurrentUser', () => ({
   useCurrentUser: vi.fn(),
 }));
 
+vi.mock('./useAuth', () => ({
+  useAuth: vi.fn(),
+}));
+
 vi.mock('./useKeycastPublish', () => ({
   useKeycastPublish: vi.fn(),
 }));
 
 import { useNostr } from '@nostrify/react';
+import { useAuth } from './useAuth';
 import { useCurrentUser } from './useCurrentUser';
 import { useKeycastPublish } from './useKeycastPublish';
 import { usePageHistory } from './usePageHistory';
@@ -72,6 +77,19 @@ describe('usePageHistory', () => {
     vi.mocked(useNostr).mockReturnValue({
       nostr: { query: mockQuery } as never,
     });
+    vi.mocked(useAuth).mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
+      pubkey: 'owner-pubkey',
+      signer: {
+        nip44: {
+          encrypt: mockEncrypt,
+          decrypt: mockDecrypt,
+        },
+      },
+      isKeycastLogin: false,
+      logout: vi.fn(),
+    } as never);
     vi.mocked(useCurrentUser).mockReturnValue({
       user: {
         pubkey: 'owner-pubkey',
@@ -130,5 +148,36 @@ describe('usePageHistory', () => {
     ]);
     expect(mockDecrypt).toHaveBeenCalledWith('owner-pubkey', 'ciphertext');
     expect(result.current.revisions[0].page.title).toBe('Creator Home');
+  });
+
+  it('supports revision history when auth comes from the unified auth hook', async () => {
+    vi.mocked(useCurrentUser).mockReturnValue({
+      user: undefined,
+    } as never);
+    mockQuery.mockResolvedValue([createMockRevisionEvent()]);
+    mockDecrypt.mockResolvedValue(JSON.stringify(createPageRevisionSnapshot(page, 'save-draft', 123)));
+
+    const wrapper = createWrapper();
+    const { result } = renderHook(() => usePageHistory('profile-draft'), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.revisions).toHaveLength(1);
+    });
+
+    await result.current.createRevision.mutateAsync({
+      page,
+      source: 'save-draft',
+    });
+
+    expect(mockQuery).toHaveBeenCalledWith([
+      {
+        kinds: [31234],
+        authors: ['owner-pubkey'],
+        '#k': ['30512'],
+        limit: 50,
+      },
+    ]);
+    expect(mockEncrypt).toHaveBeenCalledWith('owner-pubkey', expect.any(String));
+    expect(mockPublish).toHaveBeenCalled();
   });
 });

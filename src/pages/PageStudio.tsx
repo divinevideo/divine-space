@@ -1,61 +1,62 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSeoMeta } from '@unhead/react';
 import { BentoGridEditor } from '@/components/BentoGridEditor';
 import { Layout } from '@/components/Layout';
-import { PageCopilotPanel } from '@/components/page/PageCopilotPanel';
+import { PageStudioActionsMenu } from '@/components/page/PageStudioActionsMenu';
+import { PageStudioAddWidgetMenu } from '@/components/page/PageStudioAddWidgetMenu';
+import { PageStudioInspector } from '@/components/page/PageStudioInspector';
+import { PageStudioHistorySheet } from '@/components/page/PageStudioHistorySheet';
 import { PageStudioShell } from '@/components/page/PageStudioShell';
-import { PagePreview } from '@/components/page/PagePreview';
-import { PageRevisionHistory } from '@/components/page/PageRevisionHistory';
 import { useAuth } from '@/hooks/useAuth';
-import { useToast } from '@/hooks/useToast';
-import { useUpdateSiteConfig } from '@/hooks/useSiteConfig';
-import { usePageHistory } from '@/hooks/usePageHistory';
-import { applyPageCopilotSuggestion } from '@/lib/pageCopilot';
+import { appendWidgetToLayout } from '@/lib/pageStudioWidgets';
 import { createSidebarBentoLayout } from '@/lib/sidebarBentoLayout';
-import type { PageDocument } from '@/types/page';
-import type { PageCopilotSuggestion } from '@/types/pageCopilot';
+import { getMaxSize, getMinSize } from '@/lib/widgetRegistry';
 import type { PageRevision } from '@/types/pageHistory';
-import type { SiteConfigInput } from '@/types/site';
-import type { BentoLayout } from '@/types/widgets';
-import {
-  useDraftPageDocument,
-  useEnsureStarterDraft,
-  usePublishPageDocument,
-} from '@/hooks/usePageDocument';
+import type { BentoLayout, Widget, WidgetType } from '@/types/widgets';
+import { usePageStudioController } from '@/pages/pageStudio/PageStudioProvider';
 
-function pageDocumentToSiteConfigInput(page: PageDocument): SiteConfigInput {
-  return {
-    name: page.name,
-    title: page.title,
-    summary: page.summary,
-    image: page.image,
-    icon: page.icon,
-    themeId: page.themeId,
-    includes: page.includes,
-    layout: page.layout,
-    gridCols: page.gridCols,
-    widgets: page.widgets,
-    customization: page.customization,
-  };
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
 }
 
-function serializePageDocument(page: PageDocument | null): string {
-  return JSON.stringify(page ?? null);
+function normalizeGridValue(value: number): number {
+  return Math.round(value);
+}
+
+function sanitizeWidgetLayoutUpdate(
+  widget: Widget,
+  nextLayout: Partial<Pick<Widget, 'x' | 'y' | 'w' | 'h'>>,
+  gridCols: number
+): Pick<Widget, 'x' | 'y' | 'w' | 'h'> {
+  const minSize = getMinSize(widget.type);
+  const maxSize = getMaxSize(widget.type);
+  const nextW = normalizeGridValue(nextLayout.w ?? widget.w);
+  const nextH = normalizeGridValue(nextLayout.h ?? widget.h);
+  const w = clamp(nextW, minSize.w, maxSize.w);
+  const h = clamp(nextH, minSize.h, maxSize.h);
+  const x = clamp(normalizeGridValue(nextLayout.x ?? widget.x), 0, Math.max(0, gridCols - w));
+  const y = Math.max(0, normalizeGridValue(nextLayout.y ?? widget.y));
+
+  return { x, y, w, h };
 }
 
 export default function PageStudio() {
   const { pubkey } = useAuth();
-  const { toast } = useToast();
-  const draftQuery = useDraftPageDocument(pubkey);
-  const { ensureStarterDraft } = useEnsureStarterDraft(pubkey);
-  const { publishDraft } = usePublishPageDocument(pubkey);
-  const bootstrappedPubkey = useRef<string | undefined>(undefined);
-  const [draftPage, setDraftPage] = useState<PageDocument | null>(null);
-  const [savedDraftSnapshot, setSavedDraftSnapshot] = useState<PageDocument | null>(null);
-  const [lastAiSnapshot, setLastAiSnapshot] = useState<PageDocument | null>(null);
-  const pageIdentifier = draftPage?.identifier ?? draftQuery.data?.identifier ?? 'profile-draft';
-  const saveDraft = useUpdateSiteConfig(pageIdentifier);
-  const revisionHistory = usePageHistory(pageIdentifier);
+  const {
+    workingDraft,
+    hasDraftChanges,
+    isSavingDraft,
+    isPublishing,
+    revisions,
+    isHistoryLoading,
+    setDraftPage,
+    clearAiSnapshot,
+    restoreRevision,
+    saveDraft,
+    publishDraft,
+  } = usePageStudioController();
+  const [selectedWidgetId, setSelectedWidgetId] = useState<string | null>(null);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
   useSeoMeta({
     title: 'Page Studio - DiVine Space',
@@ -63,28 +64,16 @@ export default function PageStudio() {
   });
 
   useEffect(() => {
-    if (!pubkey || bootstrappedPubkey.current === pubkey || !draftQuery.isSuccess) {
+    if (!selectedWidgetId) {
       return;
     }
 
-    bootstrappedPubkey.current = pubkey;
-    if (!draftQuery.data) {
-      ensureStarterDraft.mutate();
+    if (!workingDraft?.widgets.some((widget) => widget.id === selectedWidgetId)) {
+      setSelectedWidgetId(null);
     }
-  }, [draftQuery.data, draftQuery.isSuccess, ensureStarterDraft, pubkey]);
+  }, [selectedWidgetId, workingDraft?.widgets]);
 
-  useEffect(() => {
-    if (draftQuery.data === undefined) {
-      return;
-    }
-
-    setDraftPage(draftQuery.data);
-    setSavedDraftSnapshot(draftQuery.data);
-    setLastAiSnapshot(null);
-  }, [draftQuery.data]);
-
-  const workingDraft = draftPage ?? draftQuery.data ?? null;
-  const hasDraftChanges = serializePageDocument(workingDraft) !== serializePageDocument(savedDraftSnapshot);
+  const selectedWidget = workingDraft?.widgets.find((widget) => widget.id === selectedWidgetId) ?? null;
 
   const handleEditorChange = (layout: BentoLayout) => {
     setDraftPage((currentPage) => {
@@ -99,75 +88,83 @@ export default function PageStudio() {
         widgets: layout.widgets,
       };
     });
-    setLastAiSnapshot(null);
+    clearAiSnapshot();
   };
 
-  const handleApplySuggestion = (suggestion: PageCopilotSuggestion) => {
-    if (!workingDraft) {
-      return;
-    }
+  const handleAddWidget = (type: WidgetType) => {
+    setDraftPage((currentPage) => {
+      if (!currentPage) {
+        return currentPage;
+      }
 
-    setLastAiSnapshot(workingDraft);
-    setDraftPage(applyPageCopilotSuggestion(workingDraft, suggestion));
+      return {
+        ...currentPage,
+        layout: 'bento',
+        widgets: appendWidgetToLayout(currentPage.widgets, type),
+      };
+    });
+    clearAiSnapshot();
   };
 
-  const handleRevertAiChange = () => {
-    if (!lastAiSnapshot) {
-      return;
-    }
-
-    setDraftPage(lastAiSnapshot);
-    setLastAiSnapshot(null);
+  const handleSelectWidget = (widgetId: string) => {
+    setSelectedWidgetId(widgetId);
   };
 
-  const handleSaveDraft = async () => {
-    if (!workingDraft) {
-      return;
-    }
-
-    try {
-      await revisionHistory.createRevision.mutateAsync({
-        page: workingDraft,
-        source: 'save-draft',
-      });
-    } catch {
-      toast({
-        title: 'Revision history failed to save',
-        variant: 'destructive',
-      });
-    }
-
-    await saveDraft.mutateAsync(pageDocumentToSiteConfigInput(workingDraft));
-    setSavedDraftSnapshot(workingDraft);
+  const handleCloseInspector = () => {
+    setSelectedWidgetId(null);
   };
 
-  const handlePublish = async () => {
-    if (!workingDraft) {
-      return;
-    }
-
-    if (hasDraftChanges && workingDraft) {
-      await handleSaveDraft();
-    }
-
-    try {
-      await revisionHistory.createRevision.mutateAsync({
-        page: workingDraft,
-        source: 'publish',
-      });
-    } catch {
-      toast({
-        title: 'Publish history snapshot failed',
-        variant: 'destructive',
-      });
-    }
-
-    await publishDraft.mutateAsync();
+  const handleOpenHistory = () => {
+    setIsHistoryOpen(true);
   };
 
-  const handleRestoreSavedRevision = (revision: PageRevision) => {
-    setDraftPage(revision.page);
-    setLastAiSnapshot(null);
+  const handleRestoreRevision = (revision: PageRevision) => {
+    restoreRevision(revision);
+    setSelectedWidgetId(null);
+    setIsHistoryOpen(false);
+  };
+
+  const updateWidget = (
+    widgetId: string,
+    nextLayout: Partial<Pick<Widget, 'x' | 'y' | 'w' | 'h'>>
+  ) => {
+    setDraftPage((currentPage) => {
+      if (!currentPage) {
+        return currentPage;
+      }
+
+      const gridCols = currentPage.gridCols ?? 4;
+
+      return {
+        ...currentPage,
+        layout: 'bento',
+        widgets: currentPage.widgets.map((widget) => (
+          widget.id === widgetId
+            ? { ...widget, ...sanitizeWidgetLayoutUpdate(widget, nextLayout, gridCols) }
+            : widget
+        )),
+      };
+    });
+    clearAiSnapshot();
+  };
+
+  const removeWidget = (widgetId: string) => {
+    setDraftPage((currentPage) => {
+      if (!currentPage) {
+        return currentPage;
+      }
+
+      return {
+        ...currentPage,
+        layout: 'bento',
+        widgets: currentPage.widgets.filter((widget) => widget.id !== widgetId),
+      };
+    });
+    clearAiSnapshot();
+
+    if (selectedWidgetId === widgetId) {
+      setSelectedWidgetId(null);
+    }
   };
 
   const editorLayout = createSidebarBentoLayout(
@@ -181,67 +178,52 @@ export default function PageStudio() {
       <PageStudioShell
         page={workingDraft}
         pubkey={pubkey}
+        topBarActions={workingDraft && pubkey ? (
+          <>
+            <PageStudioAddWidgetMenu
+              widgets={workingDraft.widgets}
+              onAddWidget={handleAddWidget}
+            />
+            <PageStudioActionsMenu onOpenHistory={handleOpenHistory} />
+          </>
+        ) : undefined}
         onSaveDraft={() => {
-          void handleSaveDraft();
+          void saveDraft();
         }}
-        isSavingDraft={saveDraft.isPending}
+        isSavingDraft={isSavingDraft}
         hasDraftChanges={hasDraftChanges}
         onPublish={() => {
-          void handlePublish();
+          void publishDraft();
         }}
-        isPublishing={publishDraft.isPending}
+        isPublishing={isPublishing}
       >
-        <div className="grid gap-6 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_360px]">
-          <section className="space-y-3">
-            <div>
-              <h2 className="text-lg font-semibold tracking-tight">Edit Draft</h2>
-              <p className="text-sm text-muted-foreground">
-                Drag, resize, add, or remove widgets in your hosted page draft.
-              </p>
-            </div>
-            {workingDraft ? (
-              <BentoGridEditor
-                layout={editorLayout}
-                pubkey={pubkey ?? ''}
-                onChange={handleEditorChange}
-              />
-            ) : null}
-          </section>
-
-          <section className="space-y-3">
-            <div>
-              <h2 className="text-lg font-semibold tracking-tight">Preview</h2>
-              <p className="text-sm text-muted-foreground">
-                This preview uses the same renderer as the published hosted page.
-              </p>
-            </div>
-            <PagePreview page={workingDraft} pubkey={pubkey} />
-          </section>
-
-          <div className="space-y-6 2xl:self-start">
-            <section className="space-y-3">
-              <div>
-                <h2 className="text-lg font-semibold tracking-tight">Copilot</h2>
-                <p className="text-sm text-muted-foreground">
-                  Generate structured draft changes, inspect them, then apply them to your page.
-                </p>
-              </div>
-              <PageCopilotPanel
-                page={workingDraft}
-                onApply={handleApplySuggestion}
-                onRevert={handleRevertAiChange}
-                canRevert={!!lastAiSnapshot}
-              />
-            </section>
-
-            <PageRevisionHistory
-              revisions={revisionHistory.revisions}
-              isLoading={revisionHistory.isLoading}
-              onRestore={handleRestoreSavedRevision}
-            />
-          </div>
-        </div>
+        {workingDraft ? (
+          <BentoGridEditor
+            layout={editorLayout}
+            pubkey={pubkey ?? ''}
+            onChange={handleEditorChange}
+            selectedWidgetId={selectedWidgetId ?? undefined}
+            onSelectWidget={handleSelectWidget}
+          />
+        ) : null}
       </PageStudioShell>
+      {isHistoryOpen ? (
+        <PageStudioHistorySheet
+          open={isHistoryOpen}
+          onOpenChange={setIsHistoryOpen}
+          revisions={revisions}
+          onRestore={handleRestoreRevision}
+          isLoading={isHistoryLoading}
+        />
+      ) : null}
+      {selectedWidget ? (
+        <PageStudioInspector
+          widget={selectedWidget}
+          onClose={handleCloseInspector}
+          onRemoveWidget={removeWidget}
+          onUpdateWidget={updateWidget}
+        />
+      ) : null}
     </Layout>
   );
 }

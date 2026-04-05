@@ -176,7 +176,7 @@ describe('page document plumbing', () => {
 
     const { result } = renderHook(() => usePublishPageDocument(pubkey), { wrapper });
 
-    await result.current.publishDraft.mutateAsync();
+    await result.current.publishDraft.mutateAsync(undefined);
 
     expect(mockPublish).toHaveBeenCalledWith(expect.objectContaining({
       tags: expect.arrayContaining([['d', 'profile']]),

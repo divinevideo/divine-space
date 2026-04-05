@@ -1,4 +1,4 @@
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Outlet, Route, Routes } from "react-router-dom";
 import { ScrollToTop } from "./components/ScrollToTop";
 import { useSubdomain } from "./hooks/useSubdomain";
 
@@ -12,12 +12,22 @@ import Friends from "./pages/Friends";
 import Settings from "./pages/Settings";
 import MySpaceSettings from "./pages/MySpaceSettings";
 import PageStudio from "./pages/PageStudio";
+import PageStudioAi from "./pages/PageStudioAi";
 import Messages from "./pages/Messages";
 import Callback from "./pages/Callback";
 import { NIP19Page } from "./pages/NIP19Page";
 import Profile from "./pages/Profile";
 import ClaimName from "./pages/ClaimName";
 import NotFound from "./pages/NotFound";
+import { PageStudioProvider } from "./pages/pageStudio/PageStudioProvider";
+
+function PageStudioRoutes() {
+  return (
+    <PageStudioProvider>
+      <Outlet />
+    </PageStudioProvider>
+  );
+}
 
 /**
  * Router component that handles subdomain-based profile routing
@@ -40,7 +50,10 @@ function SubdomainAwareRouter() {
           <Route path="/embed/:id" element={<Embed />} />
           <Route path="/settings/profile" element={<Settings />} />
           <Route path="/settings/myspace" element={<MySpaceSettings />} />
-          <Route path="/studio/page" element={<PageStudio />} />
+          <Route element={<PageStudioRoutes />}>
+            <Route path="/studio/page" element={<PageStudio />} />
+            <Route path="/studio/ai" element={<PageStudioAi />} />
+          </Route>
           <Route path="*" element={<Profile pubkey={pubkey} isSubdomain subdomain={subdomain} />} />
         </Routes>
       </BrowserRouter>
@@ -74,7 +87,10 @@ function SubdomainAwareRouter() {
         <Route path="/messages" element={<Messages />} />
         <Route path="/settings/profile" element={<Settings />} />
         <Route path="/settings/myspace" element={<MySpaceSettings />} />
-        <Route path="/studio/page" element={<PageStudio />} />
+        <Route element={<PageStudioRoutes />}>
+          <Route path="/studio/page" element={<PageStudio />} />
+          <Route path="/studio/ai" element={<PageStudioAi />} />
+        </Route>
         <Route path="/callback" element={<Callback />} />
         {/* NIP-19 route for npub1, note1, naddr1, nevent1, nprofile1 */}
         <Route path="/:nip19" element={<NIP19Page />} />
