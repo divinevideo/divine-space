@@ -16,19 +16,24 @@ import { SITE_CONFIG_KIND } from '@/types/site';
 /**
  * Query key factory for site config
  */
-export const SITE_CONFIG_QUERY_KEY = (pubkey: string) => ['site-config', pubkey];
+export const SITE_CONFIG_QUERY_KEY = (pubkey: string, identifier = 'profile') => [
+  'site-config',
+  pubkey,
+  identifier,
+];
 
 /**
  * Fetch a user's site configuration (Kind 30512)
  *
  * @param pubkey - The user's public key (hex)
+ * @param identifier - The site config identifier to load
  * @returns Query result with parsed SiteConfig or null
  */
-export function useSiteConfig(pubkey: string | undefined) {
+export function useSiteConfig(pubkey: string | undefined, identifier = 'profile') {
   const { nostr } = useNostr();
 
   return useQuery({
-    queryKey: pubkey ? SITE_CONFIG_QUERY_KEY(pubkey) : ['site-config', 'none'],
+    queryKey: pubkey ? SITE_CONFIG_QUERY_KEY(pubkey, identifier) : ['site-config', 'none', identifier],
     queryFn: async (): Promise<SiteConfig | null> => {
       if (!pubkey) return null;
 
@@ -36,7 +41,7 @@ export function useSiteConfig(pubkey: string | undefined) {
         {
           kinds: [SITE_CONFIG_KIND],
           authors: [pubkey],
-          '#d': ['profile'],
+          '#d': [identifier],
           limit: 1,
         },
       ]);
