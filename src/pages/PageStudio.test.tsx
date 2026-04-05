@@ -4,6 +4,7 @@ import { TestApp } from '@/test/TestApp';
 import type { PageDocument } from '@/types/page';
 import type { PageCopilotSuggestion } from '@/types/pageCopilot';
 import type { PageRevision } from '@/types/pageHistory';
+import { PageStudioProvider } from '@/pages/pageStudio/PageStudioProvider';
 import Settings from './Settings';
 import MySpaceSettings from './MySpaceSettings';
 import PageStudio from './PageStudio';
@@ -307,12 +308,18 @@ describe('PageStudio', () => {
     revisions.current = [];
   });
 
-  it('does not create a starter draft when one already exists', async () => {
-    render(
+  function renderPageStudio() {
+    return render(
       <TestApp>
-        <PageStudio />
+        <PageStudioProvider>
+          <PageStudio />
+        </PageStudioProvider>
       </TestApp>
     );
+  }
+
+  it('does not create a starter draft when one already exists', async () => {
+    renderPageStudio();
 
     await waitFor(() => {
       expect(screen.getByTestId('bento-grid-editor')).toBeInTheDocument();
@@ -331,11 +338,7 @@ describe('PageStudio', () => {
       summary: 'Draft page preview',
     };
 
-    render(
-      <TestApp>
-        <PageStudio />
-      </TestApp>
-    );
+    renderPageStudio();
 
     await waitFor(() => {
       expect(usePageHistoryMock).toHaveBeenCalledWith('creator-home-draft');
@@ -345,11 +348,7 @@ describe('PageStudio', () => {
   it('creates a starter draft when the owner has none', async () => {
     draftPage.current = null;
 
-    render(
-      <TestApp>
-        <PageStudio />
-      </TestApp>
-    );
+    renderPageStudio();
 
     await waitFor(() => {
       expect(ensureStarterDraft).toHaveBeenCalled();
@@ -366,11 +365,7 @@ describe('PageStudio', () => {
       summary: 'Draft page preview',
     };
 
-    render(
-      <TestApp>
-        <PageStudio />
-      </TestApp>
-    );
+    renderPageStudio();
 
     expect(await screen.findByRole('button', { name: /publish/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /save draft/i })).toBeInTheDocument();
@@ -400,11 +395,7 @@ describe('PageStudio', () => {
       },
     ];
 
-    render(
-      <TestApp>
-        <PageStudio />
-      </TestApp>
-    );
+    renderPageStudio();
 
     expect(screen.queryByTestId('page-revision-history')).not.toBeInTheDocument();
 
@@ -426,14 +417,13 @@ describe('PageStudio', () => {
     fireEvent.click(screen.getByRole('button', { name: /restore restored draft/i }));
 
     expect(await screen.findByTestId('editor-widget-count')).toHaveTextContent('1');
+    await waitFor(() => {
+      expect(screen.queryByTestId('page-revision-history')).not.toBeInTheDocument();
+    });
   });
 
   it('saves draft edits before publishing', async () => {
-    render(
-      <TestApp>
-        <PageStudio />
-      </TestApp>
-    );
+    renderPageStudio();
 
     fireEvent.click(screen.getByRole('button', { name: /simulate editor change/i }));
     fireEvent.click(screen.getByRole('button', { name: /publish/i }));
@@ -445,11 +435,7 @@ describe('PageStudio', () => {
   });
 
   it('creates a revision before saving the draft', async () => {
-    render(
-      <TestApp>
-        <PageStudio />
-      </TestApp>
-    );
+    renderPageStudio();
 
     fireEvent.click(screen.getByRole('button', { name: /simulate editor change/i }));
     fireEvent.click(screen.getByRole('button', { name: /save draft/i }));
@@ -467,11 +453,7 @@ describe('PageStudio', () => {
   it('warns when revision history fails during save but still saves the draft', async () => {
     createRevision.mockRejectedValueOnce(new Error('history failed'));
 
-    render(
-      <TestApp>
-        <PageStudio />
-      </TestApp>
-    );
+    renderPageStudio();
 
     fireEvent.click(screen.getByRole('button', { name: /simulate editor change/i }));
     fireEvent.click(screen.getByRole('button', { name: /save draft/i }));
@@ -489,11 +471,7 @@ describe('PageStudio', () => {
   });
 
   it('creates a publish revision before publishing', async () => {
-    render(
-      <TestApp>
-        <PageStudio />
-      </TestApp>
-    );
+    renderPageStudio();
 
     fireEvent.click(screen.getByRole('button', { name: /publish/i }));
 
@@ -526,11 +504,7 @@ describe('PageStudio', () => {
   });
 
   it('renders add widget in the shell header and appends a widget through the route menu', async () => {
-    render(
-      <TestApp>
-        <PageStudio />
-      </TestApp>
-    );
+    renderPageStudio();
 
     const banner = screen.getByRole('banner');
     const topBar = within(banner);
@@ -557,11 +531,7 @@ describe('PageStudio', () => {
       summary: 'Draft page preview',
     };
 
-    render(
-      <TestApp>
-        <PageStudio />
-      </TestApp>
-    );
+    renderPageStudio();
 
     fireEvent.click(await screen.findByTestId('widget-profile-1'));
 
@@ -588,11 +558,7 @@ describe('PageStudio', () => {
       summary: 'Draft page preview',
     };
 
-    render(
-      <TestApp>
-        <PageStudio />
-      </TestApp>
-    );
+    renderPageStudio();
 
     fireEvent.click(await screen.findByTestId('widget-profile-1'));
 
@@ -619,11 +585,7 @@ describe('PageStudio', () => {
       summary: 'Draft page preview',
     };
 
-    render(
-      <TestApp>
-        <PageStudio />
-      </TestApp>
-    );
+    renderPageStudio();
 
     fireEvent.click(await screen.findByTestId('widget-profile-1'));
 
@@ -673,11 +635,7 @@ describe('PageStudio', () => {
       summary: 'Draft page preview',
     };
 
-    render(
-      <TestApp>
-        <PageStudio />
-      </TestApp>
-    );
+    renderPageStudio();
 
     fireEvent.click(await screen.findByTestId('widget-profile-1'));
 
@@ -700,11 +658,7 @@ describe('PageStudio', () => {
       summary: 'Draft page preview',
     };
 
-    render(
-      <TestApp>
-        <PageStudio />
-      </TestApp>
-    );
+    renderPageStudio();
 
     fireEvent.click(await screen.findByTestId('widget-profile-1'));
 
@@ -725,11 +679,7 @@ describe('PageStudio', () => {
       summary: 'Draft page preview',
     };
 
-    render(
-      <TestApp>
-        <PageStudio />
-      </TestApp>
-    );
+    renderPageStudio();
 
     fireEvent.click(await screen.findByTestId('widget-profile-1'));
 
@@ -756,11 +706,7 @@ describe('PageStudio', () => {
       summary: 'Draft page preview',
     };
 
-    render(
-      <TestApp>
-        <PageStudio />
-      </TestApp>
-    );
+    renderPageStudio();
 
     fireEvent.click(await screen.findByTestId('widget-profile-1'));
     fireEvent.click(screen.getByRole('button', { name: /remove widget/i }));
