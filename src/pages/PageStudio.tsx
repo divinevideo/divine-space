@@ -160,19 +160,11 @@ export default function PageStudio() {
         isPublishing={publishDraft.isPending}
       >
         {workingDraft ? (
-          <section className="space-y-3">
-            <div>
-              <h2 className="text-lg font-semibold tracking-tight">Edit Draft</h2>
-              <p className="text-sm text-muted-foreground">
-                Drag, resize, add, or remove widgets in your hosted page draft.
-              </p>
-            </div>
-            <BentoGridEditor
-              layout={editorLayout}
-              pubkey={pubkey ?? ''}
-              onChange={handleEditorChange}
-            />
-          </section>
+          <BentoGridEditor
+            layout={editorLayout}
+            pubkey={pubkey ?? ''}
+            onChange={handleEditorChange}
+          />
         ) : null}
       </PageStudioShell>
     </Layout>
