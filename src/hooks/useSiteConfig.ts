@@ -61,7 +61,7 @@ export function useSiteConfig(pubkey: string | undefined, identifier = 'profile'
  *
  * @returns Mutation for updating site config
  */
-export function useUpdateSiteConfig() {
+export function useUpdateSiteConfig(identifier = 'profile') {
   const { pubkey } = useAuth();
   const { mutateAsync: publish } = useKeycastPublish();
   const queryClient = useQueryClient();
@@ -72,7 +72,7 @@ export function useUpdateSiteConfig() {
         throw new Error('Not authenticated');
       }
 
-      const tags = siteConfigToTags(input, pubkey);
+      const tags = siteConfigToTags(input, pubkey, identifier);
       const content = siteConfigToContent(input);
 
       const event = await publish({
@@ -89,10 +89,10 @@ export function useUpdateSiteConfig() {
 
       // Optimistically update the cache
       queryClient.setQueryData(
-        SITE_CONFIG_QUERY_KEY(pubkey),
+        SITE_CONFIG_QUERY_KEY(pubkey, identifier),
         (old: SiteConfig | null | undefined): SiteConfig => {
           const merged: SiteConfig = {
-            identifier: 'profile',
+            identifier,
             includes: input.includes ?? old?.includes ?? [],
             widgets: input.widgets ?? old?.widgets ?? [],
             name: input.name ?? old?.name,
@@ -113,7 +113,7 @@ export function useUpdateSiteConfig() {
 
       // Invalidate to refetch fresh data
       queryClient.invalidateQueries({
-        queryKey: SITE_CONFIG_QUERY_KEY(pubkey),
+        queryKey: SITE_CONFIG_QUERY_KEY(pubkey, identifier),
       });
     },
     onError: (error) => {
@@ -127,10 +127,10 @@ export function useUpdateSiteConfig() {
  *
  * @returns Mutation for updating the theme
  */
-export function useSetSiteTheme() {
+export function useSetSiteTheme(identifier = 'profile') {
   const { pubkey } = useAuth();
-  const { data: currentConfig } = useSiteConfig(pubkey ?? undefined);
-  const { mutateAsync: updateConfig } = useUpdateSiteConfig();
+  const { data: currentConfig } = useSiteConfig(pubkey ?? undefined, identifier);
+  const { mutateAsync: updateConfig } = useUpdateSiteConfig(identifier);
 
   return useMutation({
     mutationFn: async (themeId: string) => {
@@ -147,10 +147,10 @@ export function useSetSiteTheme() {
  *
  * @returns Mutation for updating widgets
  */
-export function useUpdateSiteWidgets() {
+export function useUpdateSiteWidgets(identifier = 'profile') {
   const { pubkey } = useAuth();
-  const { data: currentConfig } = useSiteConfig(pubkey ?? undefined);
-  const { mutateAsync: updateConfig } = useUpdateSiteConfig();
+  const { data: currentConfig } = useSiteConfig(pubkey ?? undefined, identifier);
+  const { mutateAsync: updateConfig } = useUpdateSiteConfig(identifier);
 
   return useMutation({
     mutationFn: async (widgets: SiteConfig['widgets']) => {
@@ -167,10 +167,10 @@ export function useUpdateSiteWidgets() {
  *
  * @returns Mutation for updating customization
  */
-export function useUpdateSiteCustomization() {
+export function useUpdateSiteCustomization(identifier = 'profile') {
   const { pubkey } = useAuth();
-  const { data: currentConfig } = useSiteConfig(pubkey ?? undefined);
-  const { mutateAsync: updateConfig } = useUpdateSiteConfig();
+  const { data: currentConfig } = useSiteConfig(pubkey ?? undefined, identifier);
+  const { mutateAsync: updateConfig } = useUpdateSiteConfig(identifier);
 
   return useMutation({
     mutationFn: async (customization: SiteConfig['customization']) => {
@@ -187,10 +187,10 @@ export function useUpdateSiteCustomization() {
  *
  * @returns Mutation for updating includes
  */
-export function useUpdateSiteIncludes() {
+export function useUpdateSiteIncludes(identifier = 'profile') {
   const { pubkey } = useAuth();
-  const { data: currentConfig } = useSiteConfig(pubkey ?? undefined);
-  const { mutateAsync: updateConfig } = useUpdateSiteConfig();
+  const { data: currentConfig } = useSiteConfig(pubkey ?? undefined, identifier);
+  const { mutateAsync: updateConfig } = useUpdateSiteConfig(identifier);
 
   return useMutation({
     mutationFn: async (includes: SiteConfig['includes']) => {

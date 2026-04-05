@@ -8,10 +8,36 @@ vi.mock('@nostrify/react', () => ({
   useNostr: vi.fn(),
 }));
 
+vi.mock('./useAuth', () => ({
+  useAuth: vi.fn(),
+}));
+
+vi.mock('./useKeycastPublish', () => ({
+  useKeycastPublish: vi.fn(),
+}));
+
+vi.mock('./useAuthor', () => ({
+  useAuthor: vi.fn(),
+}));
+
+vi.mock('./useMySpaceProfile', () => ({
+  useMySpaceProfile: vi.fn(),
+}));
+
 import { useNostr } from '@nostrify/react';
+import { useAuth } from './useAuth';
+import { useAuthor } from './useAuthor';
+import { useKeycastPublish } from './useKeycastPublish';
+import { useMySpaceProfile } from './useMySpaceProfile';
 import { siteConfigToTags } from '@/lib/parseSiteConfig';
 import type { SiteConfigInput } from '@/types/site';
 import { useSiteConfig } from './useSiteConfig';
+import {
+  useDraftPageDocument,
+  useEnsureStarterDraft,
+  usePublishedPageDocument,
+  usePublishPageDocument,
+} from './usePageDocument';
 
 function createMockSiteEvent(
   pubkey: string,
@@ -88,5 +114,127 @@ describe('page document plumbing', () => {
     const tags = siteConfigToTags(input, 'testpubkey123', 'profile-draft');
 
     expect(tags).toContainEqual(['d', 'profile-draft']);
+  });
+
+  it('fetches the published page with identifier profile', async () => {
+    const pubkey = 'publishedpubkey123';
+    const publishedEvent = createMockSiteEvent(pubkey, 'profile', JSON.stringify({
+      widgets: [],
+    }));
+    const mockQuery = vi.fn().mockResolvedValue([publishedEvent]);
+    vi.mocked(useNostr).mockReturnValue({
+      nostr: { query: mockQuery } as never,
+    });
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+    const wrapper = createWrapper(queryClient);
+
+    const { result } = renderHook(() => usePublishedPageDocument(pubkey), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.data?.identifier).toBe('profile');
+    });
+  });
+
+  it('publishes the draft page into the published identifier', async () => {
+    const pubkey = 'owner-pubkey';
+    const draftEvent = createMockSiteEvent(pubkey, 'profile-draft', JSON.stringify({
+      widgets: [
+        { id: 'profile', type: 'profile', x: 0, y: 0, w: 1, h: 1 },
+      ],
+    }));
+    const mockQuery = vi.fn().mockResolvedValue([draftEvent]);
+    const mockPublish = vi.fn().mockResolvedValue({ id: 'published-event' });
+
+    vi.mocked(useNostr).mockReturnValue({
+      nostr: { query: mockQuery } as never,
+    });
+    vi.mocked(useAuth).mockReturnValue({
+      pubkey,
+      isAuthenticated: true,
+      isLoading: false,
+      signer: undefined,
+      isKeycastLogin: false,
+      logout: vi.fn(),
+    });
+    vi.mocked(useKeycastPublish).mockReturnValue({
+      mutateAsync: mockPublish,
+      isPending: false,
+    } as never);
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+    const wrapper = createWrapper(queryClient);
+
+    const { result } = renderHook(() => usePublishPageDocument(pubkey), { wrapper });
+
+    await result.current.publishDraft.mutateAsync();
+
+    expect(mockPublish).toHaveBeenCalledWith(expect.objectContaining({
+      tags: expect.arrayContaining([['d', 'profile']]),
+    }));
+  });
+
+  it('bootstraps a starter draft when none exists', async () => {
+    const pubkey = 'starter-pubkey';
+    const mockQuery = vi.fn()
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+    const mockPublish = vi.fn().mockResolvedValue({ id: 'draft-event' });
+
+    vi.mocked(useNostr).mockReturnValue({
+      nostr: { query: mockQuery } as never,
+    });
+    vi.mocked(useAuth).mockReturnValue({
+      pubkey,
+      isAuthenticated: true,
+      isLoading: false,
+      signer: undefined,
+      isKeycastLogin: false,
+      logout: vi.fn(),
+    });
+    vi.mocked(useKeycastPublish).mockReturnValue({
+      mutateAsync: mockPublish,
+      isPending: false,
+    } as never);
+    vi.mocked(useAuthor).mockReturnValue({
+      data: {
+        metadata: {
+          name: 'Alice',
+          about: 'Hello world',
+          website: 'https://example.com',
+        },
+      },
+    } as never);
+    vi.mocked(useMySpaceProfile).mockReturnValue({
+      data: {
+        topFriends: [{ pubkey: 'friend-1', position: 1 }],
+      },
+    } as never);
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+    const wrapper = createWrapper(queryClient);
+
+    const { result } = renderHook(() => useEnsureStarterDraft(pubkey), { wrapper });
+
+    await result.current.ensureStarterDraft.mutateAsync();
+
+    expect(mockPublish).toHaveBeenCalledWith(expect.objectContaining({
+      tags: expect.arrayContaining([['d', 'profile-draft']]),
+    }));
   });
 });
