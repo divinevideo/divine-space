@@ -274,7 +274,7 @@ describe('PageStudio', () => {
     expect(await screen.findByRole('button', { name: /publish/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /save draft/i })).toBeInTheDocument();
     expect(screen.getByTestId('bento-grid-editor')).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: /preview/i })).not.toBeInTheDocument();
+    expect(screen.queryByText('Preview')).not.toBeInTheDocument();
     expect(screen.queryByTestId('page-copilot-panel')).not.toBeInTheDocument();
     expect(screen.queryByTestId('page-revision-history')).not.toBeInTheDocument();
   });
