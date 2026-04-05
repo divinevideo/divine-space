@@ -2,8 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { useSeoMeta } from '@unhead/react';
 import { BentoGridEditor } from '@/components/BentoGridEditor';
 import { Layout } from '@/components/Layout';
+import { PageStudioActionsMenu } from '@/components/page/PageStudioActionsMenu';
 import { PageStudioAddWidgetMenu } from '@/components/page/PageStudioAddWidgetMenu';
 import { PageStudioInspector } from '@/components/page/PageStudioInspector';
+import { PageStudioHistorySheet } from '@/components/page/PageStudioHistorySheet';
 import { PageStudioShell } from '@/components/page/PageStudioShell';
 import { useAuth } from '@/hooks/useAuth';
 import { appendWidgetToLayout } from '@/lib/pageStudioWidgets';
@@ -13,6 +15,7 @@ import { usePageHistory } from '@/hooks/usePageHistory';
 import { createSidebarBentoLayout } from '@/lib/sidebarBentoLayout';
 import { getMaxSize, getMinSize } from '@/lib/widgetRegistry';
 import type { PageDocument } from '@/types/page';
+import type { PageRevision } from '@/types/pageHistory';
 import type { SiteConfigInput } from '@/types/site';
 import type { BentoLayout, Widget, WidgetType } from '@/types/widgets';
 import {
@@ -76,6 +79,7 @@ export default function PageStudio() {
   const [draftPage, setDraftPage] = useState<PageDocument | null>(null);
   const [savedDraftSnapshot, setSavedDraftSnapshot] = useState<PageDocument | null>(null);
   const [selectedWidgetId, setSelectedWidgetId] = useState<string | null>(null);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const pageIdentifier = draftPage?.identifier ?? draftQuery.data?.identifier ?? 'profile-draft';
   const saveDraft = useUpdateSiteConfig(pageIdentifier);
   const revisionHistory = usePageHistory(pageIdentifier);
@@ -155,6 +159,16 @@ export default function PageStudio() {
 
   const handleCloseInspector = () => {
     setSelectedWidgetId(null);
+  };
+
+  const handleOpenHistory = () => {
+    setIsHistoryOpen(true);
+  };
+
+  const handleRestoreRevision = (revision: PageRevision) => {
+    setDraftPage(revision.page);
+    setSelectedWidgetId(null);
+    setIsHistoryOpen(false);
   };
 
   const updateWidget = (
@@ -255,10 +269,13 @@ export default function PageStudio() {
         page={workingDraft}
         pubkey={pubkey}
         topBarActions={workingDraft && pubkey ? (
-          <PageStudioAddWidgetMenu
-            widgets={workingDraft.widgets}
-            onAddWidget={handleAddWidget}
-          />
+          <>
+            <PageStudioAddWidgetMenu
+              widgets={workingDraft.widgets}
+              onAddWidget={handleAddWidget}
+            />
+            <PageStudioActionsMenu onOpenHistory={handleOpenHistory} />
+          </>
         ) : undefined}
         onSaveDraft={() => {
           void handleSaveDraft();
@@ -280,6 +297,15 @@ export default function PageStudio() {
           />
         ) : null}
       </PageStudioShell>
+      {isHistoryOpen ? (
+        <PageStudioHistorySheet
+          open={isHistoryOpen}
+          onOpenChange={setIsHistoryOpen}
+          revisions={revisionHistory.revisions}
+          onRestore={handleRestoreRevision}
+          isLoading={revisionHistory.isLoading}
+        />
+      ) : null}
       {selectedWidget ? (
         <PageStudioInspector
           widget={selectedWidget}

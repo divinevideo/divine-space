@@ -380,6 +380,54 @@ describe('PageStudio', () => {
     expect(screen.queryByTestId('page-revision-history')).not.toBeInTheDocument();
   });
 
+  it('opens revision history from the more actions menu and links to AI', async () => {
+    revisions.current = [
+      {
+        id: 'revision-1',
+        createdAt: 1710000000,
+        source: 'save-draft',
+        pageIdentifier: 'profile-draft',
+        page: {
+          identifier: 'profile-draft',
+          shell: { type: 'sidebar-bento' },
+          includes: [],
+          widgets: [
+            { id: 'profile-1', type: 'profile', x: 0, y: 0, w: 2, h: 2 },
+          ],
+          title: 'Restored draft',
+          summary: 'Revision restored from history',
+        },
+      },
+    ];
+
+    render(
+      <TestApp>
+        <PageStudio />
+      </TestApp>
+    );
+
+    expect(screen.queryByTestId('page-revision-history')).not.toBeInTheDocument();
+
+    fireEvent.pointerDown(screen.getByRole('button', { name: /more actions/i }));
+    fireEvent.click(screen.getByRole('button', { name: /more actions/i }));
+
+    expect(
+      await screen.findByRole('menuitem', { name: /revision history/i })
+    ).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /generate with ai/i })).toHaveAttribute(
+      'href',
+      '/studio/ai'
+    );
+
+    fireEvent.click(screen.getByRole('menuitem', { name: /revision history/i }));
+
+    expect(await screen.findByTestId('page-revision-history')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /restore restored draft/i }));
+
+    expect(await screen.findByTestId('editor-widget-count')).toHaveTextContent('1');
+  });
+
   it('saves draft edits before publishing', async () => {
     render(
       <TestApp>
