@@ -3,13 +3,29 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { TestApp } from '@/test/TestApp';
 import type { PageDocument } from '@/types/page';
 import type { PageCopilotSuggestion } from '@/types/pageCopilot';
+import type { PageRevision } from '@/types/pageHistory';
 import Settings from './Settings';
 import MySpaceSettings from './MySpaceSettings';
 import PageStudio from './PageStudio';
 
-const ensureStarterDraft = vi.fn();
-const publishDraft = vi.fn();
-const updateDraft = vi.fn();
+const {
+  ensureStarterDraft,
+  publishDraft,
+  updateDraft,
+  createRevision,
+  toast,
+  usePageHistoryMock,
+} = vi.hoisted(() => ({
+  ensureStarterDraft: vi.fn(),
+  publishDraft: vi.fn(),
+  updateDraft: vi.fn(),
+  createRevision: vi.fn(),
+  toast: vi.fn(),
+  usePageHistoryMock: vi.fn(),
+}));
+const revisions: { current: PageRevision[] } = {
+  current: [],
+};
 const aiSuggestion: PageCopilotSuggestion = {
   message: 'AI refresh',
   operations: [
@@ -96,6 +112,16 @@ vi.mock('@/hooks/useSiteConfig', () => ({
   })),
 }));
 
+vi.mock('@/hooks/usePageHistory', () => ({
+  usePageHistory: usePageHistoryMock,
+}));
+
+vi.mock('@/hooks/useToast', () => ({
+  useToast: vi.fn(() => ({
+    toast,
+  })),
+}));
+
 vi.mock('@/components/BentoGridEditor', () => ({
   BentoGridEditor: ({ onChange }: { onChange: (layout: { type: 'bento'; gridCols: number; rowHeight: number; widgets: Array<{ id: string; type: 'profile'; x: number; y: number; w: number; h: number }> }) => void }) => (
     <div data-testid="bento-grid-editor">
@@ -137,9 +163,38 @@ vi.mock('@/components/page/PageCopilotPanel', () => ({
   ),
 }));
 
+vi.mock('@/components/page/PageRevisionHistory', () => ({
+  PageRevisionHistory: ({
+    revisions,
+    onRestore,
+  }: {
+    revisions: PageRevision[];
+    onRestore: (revision: PageRevision) => void;
+  }) => (
+    <div data-testid="page-revision-history">
+      {revisions.map((revision) => (
+        <button
+          key={revision.id}
+          type="button"
+          onClick={() => onRestore(revision)}
+        >
+          Restore {revision.page.title}
+        </button>
+      ))}
+    </div>
+  ),
+}));
+
 describe('PageStudio', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    usePageHistoryMock.mockImplementation(() => ({
+      revisions: revisions.current,
+      createRevision: {
+        mutateAsync: createRevision,
+        isPending: false,
+      },
+    }));
     draftPage.current = {
       identifier: 'profile-draft',
       shell: { type: 'sidebar-bento' },
@@ -148,6 +203,7 @@ describe('PageStudio', () => {
       title: 'My Page',
       summary: 'Draft page preview',
     };
+    revisions.current = [];
   });
 
   it('does not create a starter draft when one already exists', async () => {
@@ -162,6 +218,27 @@ describe('PageStudio', () => {
     });
 
     expect(ensureStarterDraft).not.toHaveBeenCalled();
+  });
+
+  it('uses the active draft identifier for revision history', async () => {
+    draftPage.current = {
+      identifier: 'creator-home-draft',
+      shell: { type: 'sidebar-bento' },
+      includes: [],
+      widgets: [],
+      title: 'Creator Home',
+      summary: 'Draft page preview',
+    };
+
+    render(
+      <TestApp>
+        <PageStudio />
+      </TestApp>
+    );
+
+    await waitFor(() => {
+      expect(usePageHistoryMock).toHaveBeenCalledWith('creator-home-draft');
+    });
   });
 
   it('creates a starter draft when the owner has none', async () => {
@@ -282,6 +359,98 @@ describe('PageStudio', () => {
       );
       expect(publishDraft).toHaveBeenCalled();
     });
+  });
+
+  it('creates a revision before saving the draft', async () => {
+    render(
+      <TestApp>
+        <PageStudio />
+      </TestApp>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /simulate editor change/i }));
+    fireEvent.click(screen.getByRole('button', { name: /save draft/i }));
+
+    await waitFor(() => {
+      expect(createRevision).toHaveBeenCalledWith(
+        expect.objectContaining({ source: 'save-draft' })
+      );
+      expect(updateDraft).toHaveBeenCalled();
+    });
+
+    expect(createRevision.mock.invocationCallOrder[0]).toBeLessThan(updateDraft.mock.invocationCallOrder[0]);
+  });
+
+  it('warns when revision history fails during save but still saves the draft', async () => {
+    createRevision.mockRejectedValueOnce(new Error('history failed'));
+
+    render(
+      <TestApp>
+        <PageStudio />
+      </TestApp>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /simulate editor change/i }));
+    fireEvent.click(screen.getByRole('button', { name: /save draft/i }));
+
+    await waitFor(() => {
+      expect(updateDraft).toHaveBeenCalled();
+    });
+
+    expect(toast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Revision history failed to save',
+        variant: 'destructive',
+      })
+    );
+  });
+
+  it('creates a publish revision before publishing', async () => {
+    render(
+      <TestApp>
+        <PageStudio />
+      </TestApp>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /publish/i }));
+
+    await waitFor(() => {
+      expect(createRevision).toHaveBeenCalledWith(
+        expect.objectContaining({ source: 'publish' })
+      );
+      expect(publishDraft).toHaveBeenCalled();
+    });
+  });
+
+  it('restores a saved revision into the working draft without publishing', async () => {
+    revisions.current = [
+      {
+        id: 'rev-1',
+        createdAt: 123,
+        source: 'save-draft',
+        pageIdentifier: 'profile-draft',
+        page: {
+          identifier: 'profile-draft',
+          shell: { type: 'sidebar-bento' },
+          includes: [],
+          widgets: [],
+          title: 'Restored Home',
+        },
+      },
+    ];
+
+    render(
+      <TestApp>
+        <PageStudio />
+      </TestApp>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /restore restored home/i }));
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Restored Home').length).toBeGreaterThan(0);
+    });
+    expect(publishDraft).not.toHaveBeenCalled();
   });
 
   it('redirects authenticated profile settings to the studio', () => {
