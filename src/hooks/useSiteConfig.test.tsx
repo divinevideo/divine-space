@@ -254,7 +254,12 @@ describe('useSiteConfig', () => {
 
   it('provides correct query key', () => {
     const pubkey = 'testpubkey123';
-    expect(SITE_CONFIG_QUERY_KEY(pubkey)).toEqual(['site-config', pubkey]);
+    expect(SITE_CONFIG_QUERY_KEY(pubkey)).toEqual(['site-config', pubkey, 'profile']);
+    expect(SITE_CONFIG_QUERY_KEY(pubkey, 'profile-draft')).toEqual([
+      'site-config',
+      pubkey,
+      'profile-draft',
+    ]);
   });
 });
 

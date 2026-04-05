@@ -38,6 +38,8 @@ import {
 import { useInView } from 'react-intersection-observer';
 import { useEffect } from 'react';
 import { useToast } from '@/hooks/useToast';
+import { usePublishedPageDocument } from '@/hooks/usePageDocument';
+import { PublicPageRenderer } from '@/components/page/PublicPageRenderer';
 import { cn } from '@/lib/utils';
 import NotFound from './NotFound';
 
@@ -60,6 +62,7 @@ export default function Profile({ pubkey, isSubdomain, subdomain }: ProfileProps
   const { pubkey: currentUserPubkey, isAuthenticated } = useAuth();
   const { toast } = useToast();
   const isOwnProfile = currentUserPubkey === pubkey;
+  const publishedPageQuery = usePublishedPageDocument(pubkey);
 
   const { data: divineUser, isLoading: userLoading, error: userError } = useDivineUser(pubkey);
   const { data: isFollowing, isLoading: followingLoading } = useIsFollowing(pubkey);
@@ -143,6 +146,18 @@ export default function Profile({ pubkey, isSubdomain, subdomain }: ProfileProps
         </div>
       </Layout>
     );
+  }
+
+  if (publishedPageQuery.data) {
+    const renderedPage = (
+      <PublicPageRenderer page={publishedPageQuery.data} pubkey={pubkey} />
+    );
+
+    if (isSubdomain) {
+      return renderedPage;
+    }
+
+    return <Layout>{renderedPage}</Layout>;
   }
 
   if (userError || !divineUser) {
@@ -297,7 +312,7 @@ export default function Profile({ pubkey, isSubdomain, subdomain }: ProfileProps
                 {/* Action Buttons */}
                 <div className="flex gap-2 justify-center md:justify-start">
                   {isOwnProfile ? (
-                    <Link to="/settings/profile">
+                    <Link to="/studio/page">
                       <Button variant="outline" className="gap-2">
                         <Edit className="h-4 w-4" />
                         Edit Profile
@@ -476,7 +491,7 @@ export default function Profile({ pubkey, isSubdomain, subdomain }: ProfileProps
 
             {/* Customize Profile button for own profile */}
             {isOwnProfile && (
-              <Link to="/settings/myspace">
+              <Link to="/studio/page">
                 <Button variant="outline" className="w-full gap-2">
                   <Palette className="h-4 w-4" />
                   Customize Profile

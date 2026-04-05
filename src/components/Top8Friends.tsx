@@ -9,7 +9,7 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { useMySpaceProfile, type TopFriend, type PresetStyle } from '@/hooks/useMySpaceProfile';
-import { Users, Sparkles, Crown, Heart, Star, Trophy, Medal, Video, Plus } from 'lucide-react';
+import { Users, Sparkles, Crown, Heart, Medal, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // Hook to get who a user follows from their kind 3 contact list
@@ -91,7 +91,10 @@ export function Top8Friends({ pubkey, isOwnProfile, className, presetStyle }: To
   const hasCustomTop8 = customTopFriends.length > 0;
   
   // Convert following pubkeys to TopFriend format for fallback
-  const followingAsFriends: TopFriend[] = followingPubkeys.map(pk => ({ pubkey: pk }));
+  const followingAsFriends: TopFriend[] = followingPubkeys.map((pk, index) => ({
+    pubkey: pk,
+    position: index + 1,
+  }));
   
   // Use custom top8 if available, otherwise use following list
   const topFriends = hasCustomTop8 ? customTopFriends : followingAsFriends;
@@ -202,7 +205,7 @@ interface FriendSlotProps {
   isUsingFallback?: boolean;
 }
 
-function FriendSlot({ friend, rank, presetStyle, isUsingFallback }: FriendSlotProps) {
+function FriendSlot({ friend, rank, presetStyle: _presetStyle, isUsingFallback }: FriendSlotProps) {
   const { data: author, isLoading } = useAuthor(friend.pubkey);
   const npub = nip19.npubEncode(friend.pubkey);
   const metadata = author?.metadata;

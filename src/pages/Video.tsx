@@ -6,7 +6,6 @@ import { useVideoComments, useVideoReaction, useToggleVideoReaction, usePostComm
 import { useDivineUserVideos } from '@/hooks/useDivineUser';
 import { useAuth } from '@/hooks/useAuth';
 import { useAuthor } from '@/hooks/useAuthor';
-import { VideoCard, VideoCardSkeleton } from '@/components/VideoCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -59,7 +58,6 @@ export default function Video() {
   const videoDescription = video?.content?.slice(0, 200) || 'Watch this video on DiVine Space';
   const videoThumbnail = video?.thumbnail || 'https://divine.space/og-image.svg';
   const videoUrl = `https://divine.space/video/${id}`;
-  const authorName = author.data?.metadata?.display_name || author.data?.metadata?.name || 'Creator';
 
   useSeoMeta({
     title: `${videoTitle} - DiVine Space`,

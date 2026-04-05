@@ -6,17 +6,9 @@
  * support Ghost theme ecosystem compatibility.
  */
 
-// Widget types supported by the bento grid layout
-export type WidgetType =
-  | 'profile'
-  | 'top8'
-  | 'music'
-  | 'links'
-  | 'videos'
-  | 'notes'
-  | 'mood'
-  | 'gallery'
-  | 'embed';
+import type { Widget } from '@/types/widgets';
+
+export type { Widget, WidgetType } from '@/types/widgets';
 
 // Layout types
 export type SiteLayoutType = 'classic' | 'bento' | 'minimal';
@@ -26,19 +18,6 @@ export type RenderingEngine = 'org.divine.bento' | 'org.nostrsites.handlebars' |
 
 // Visual effects available for customization
 export type VisualEffect = 'sparkles' | 'glitter' | 'stars' | 'cursor-trail';
-
-/**
- * Widget configuration for the bento grid layout
- */
-export interface Widget {
-  id: string;
-  type: WidgetType;
-  x: number;
-  y: number;
-  w: number; // Width in grid units (1-4)
-  h: number; // Height in grid units (1-4)
-  config?: Record<string, unknown>;
-}
 
 /**
  * Theme customization options

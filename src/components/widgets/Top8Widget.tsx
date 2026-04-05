@@ -253,7 +253,7 @@ interface FriendSlotProps {
   compact?: boolean;
 }
 
-function FriendSlot({ friend, rank, presetStyle, isUsingFallback, compact }: FriendSlotProps) {
+function FriendSlot({ friend, rank, presetStyle: _presetStyle, isUsingFallback, compact }: FriendSlotProps) {
   const { data: author, isLoading } = useAuthor(friend.pubkey);
   const npub = nip19.npubEncode(friend.pubkey);
   const metadata = author?.metadata;

@@ -17,6 +17,7 @@ export type WidgetType =
   | 'mood'         // Mood/status
   | 'gallery'      // Image gallery
   | 'notes'        // Recent notes
+  | 'events'       // Upcoming events
   | 'embed'        // Custom embed (YouTube, etc.)
   | 'text'         // Custom text block
   | 'spacer';      // Empty spacer
@@ -197,7 +198,7 @@ export interface BentoLayout {
 export function isWidgetType(value: string): value is WidgetType {
   const validTypes: WidgetType[] = [
     'profile', 'top8', 'music', 'links', 'videos',
-    'mood', 'gallery', 'notes', 'embed', 'text', 'spacer'
+    'mood', 'gallery', 'notes', 'events', 'embed', 'text', 'spacer'
   ];
   return validTypes.includes(value as WidgetType);
 }

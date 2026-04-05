@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { DMConversationList } from '@/components/dm/DMConversationList';
 import { DMChatArea } from '@/components/dm/DMChatArea';
 import { DMStatusInfo } from '@/components/dm/DMStatusInfo';
@@ -15,13 +15,20 @@ import {
 
 interface DMMessagingInterfaceProps {
   className?: string;
+  initialPubkey?: string | null;
 }
 
-export const DMMessagingInterface = ({ className }: DMMessagingInterfaceProps) => {
-  const [selectedPubkey, setSelectedPubkey] = useState<string | null>(null);
+export const DMMessagingInterface = ({ className, initialPubkey = null }: DMMessagingInterfaceProps) => {
+  const [selectedPubkey, setSelectedPubkey] = useState<string | null>(initialPubkey);
   const [statusModalOpen, setStatusModalOpen] = useState(false);
   const isMobile = useIsMobile();
   const { clearCacheAndRefetch } = useDMContext();
+
+  useEffect(() => {
+    if (initialPubkey) {
+      setSelectedPubkey(initialPubkey);
+    }
+  }, [initialPubkey]);
 
   // On mobile, show only one panel at a time
   const showConversationList = !isMobile || !selectedPubkey;
@@ -81,4 +88,3 @@ export const DMMessagingInterface = ({ className }: DMMessagingInterfaceProps) =
     </>
   );
 };
-

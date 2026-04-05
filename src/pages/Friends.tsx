@@ -5,7 +5,7 @@ import { useDivineUserFollowing, useDivineUserFollowers } from '@/hooks/useDivin
 import { useKeycast } from '@/contexts/KeycastContext';
 import { useLoggedInAccounts } from '@/hooks/useLoggedInAccounts';
 import { useAuthor } from '@/hooks/useAuthor';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';

@@ -16,19 +16,24 @@ import { SITE_CONFIG_KIND } from '@/types/site';
 /**
  * Query key factory for site config
  */
-export const SITE_CONFIG_QUERY_KEY = (pubkey: string) => ['site-config', pubkey];
+export const SITE_CONFIG_QUERY_KEY = (pubkey: string, identifier = 'profile') => [
+  'site-config',
+  pubkey,
+  identifier,
+];
 
 /**
  * Fetch a user's site configuration (Kind 30512)
  *
  * @param pubkey - The user's public key (hex)
+ * @param identifier - The site config identifier to load
  * @returns Query result with parsed SiteConfig or null
  */
-export function useSiteConfig(pubkey: string | undefined) {
+export function useSiteConfig(pubkey: string | undefined, identifier = 'profile') {
   const { nostr } = useNostr();
 
   return useQuery({
-    queryKey: pubkey ? SITE_CONFIG_QUERY_KEY(pubkey) : ['site-config', 'none'],
+    queryKey: pubkey ? SITE_CONFIG_QUERY_KEY(pubkey, identifier) : ['site-config', 'none', identifier],
     queryFn: async (): Promise<SiteConfig | null> => {
       if (!pubkey) return null;
 
@@ -36,7 +41,7 @@ export function useSiteConfig(pubkey: string | undefined) {
         {
           kinds: [SITE_CONFIG_KIND],
           authors: [pubkey],
-          '#d': ['profile'],
+          '#d': [identifier],
           limit: 1,
         },
       ]);
@@ -56,7 +61,7 @@ export function useSiteConfig(pubkey: string | undefined) {
  *
  * @returns Mutation for updating site config
  */
-export function useUpdateSiteConfig() {
+export function useUpdateSiteConfig(identifier = 'profile') {
   const { pubkey } = useAuth();
   const { mutateAsync: publish } = useKeycastPublish();
   const queryClient = useQueryClient();
@@ -67,7 +72,7 @@ export function useUpdateSiteConfig() {
         throw new Error('Not authenticated');
       }
 
-      const tags = siteConfigToTags(input, pubkey);
+      const tags = siteConfigToTags(input, pubkey, identifier);
       const content = siteConfigToContent(input);
 
       const event = await publish({
@@ -84,10 +89,10 @@ export function useUpdateSiteConfig() {
 
       // Optimistically update the cache
       queryClient.setQueryData(
-        SITE_CONFIG_QUERY_KEY(pubkey),
+        SITE_CONFIG_QUERY_KEY(pubkey, identifier),
         (old: SiteConfig | null | undefined): SiteConfig => {
           const merged: SiteConfig = {
-            identifier: 'profile',
+            identifier,
             includes: input.includes ?? old?.includes ?? [],
             widgets: input.widgets ?? old?.widgets ?? [],
             name: input.name ?? old?.name,
@@ -108,7 +113,7 @@ export function useUpdateSiteConfig() {
 
       // Invalidate to refetch fresh data
       queryClient.invalidateQueries({
-        queryKey: SITE_CONFIG_QUERY_KEY(pubkey),
+        queryKey: SITE_CONFIG_QUERY_KEY(pubkey, identifier),
       });
     },
     onError: (error) => {
@@ -122,10 +127,10 @@ export function useUpdateSiteConfig() {
  *
  * @returns Mutation for updating the theme
  */
-export function useSetSiteTheme() {
+export function useSetSiteTheme(identifier = 'profile') {
   const { pubkey } = useAuth();
-  const { data: currentConfig } = useSiteConfig(pubkey ?? undefined);
-  const { mutateAsync: updateConfig } = useUpdateSiteConfig();
+  const { data: currentConfig } = useSiteConfig(pubkey ?? undefined, identifier);
+  const { mutateAsync: updateConfig } = useUpdateSiteConfig(identifier);
 
   return useMutation({
     mutationFn: async (themeId: string) => {
@@ -142,10 +147,10 @@ export function useSetSiteTheme() {
  *
  * @returns Mutation for updating widgets
  */
-export function useUpdateSiteWidgets() {
+export function useUpdateSiteWidgets(identifier = 'profile') {
   const { pubkey } = useAuth();
-  const { data: currentConfig } = useSiteConfig(pubkey ?? undefined);
-  const { mutateAsync: updateConfig } = useUpdateSiteConfig();
+  const { data: currentConfig } = useSiteConfig(pubkey ?? undefined, identifier);
+  const { mutateAsync: updateConfig } = useUpdateSiteConfig(identifier);
 
   return useMutation({
     mutationFn: async (widgets: SiteConfig['widgets']) => {
@@ -162,10 +167,10 @@ export function useUpdateSiteWidgets() {
  *
  * @returns Mutation for updating customization
  */
-export function useUpdateSiteCustomization() {
+export function useUpdateSiteCustomization(identifier = 'profile') {
   const { pubkey } = useAuth();
-  const { data: currentConfig } = useSiteConfig(pubkey ?? undefined);
-  const { mutateAsync: updateConfig } = useUpdateSiteConfig();
+  const { data: currentConfig } = useSiteConfig(pubkey ?? undefined, identifier);
+  const { mutateAsync: updateConfig } = useUpdateSiteConfig(identifier);
 
   return useMutation({
     mutationFn: async (customization: SiteConfig['customization']) => {
@@ -182,10 +187,10 @@ export function useUpdateSiteCustomization() {
  *
  * @returns Mutation for updating includes
  */
-export function useUpdateSiteIncludes() {
+export function useUpdateSiteIncludes(identifier = 'profile') {
   const { pubkey } = useAuth();
-  const { data: currentConfig } = useSiteConfig(pubkey ?? undefined);
-  const { mutateAsync: updateConfig } = useUpdateSiteConfig();
+  const { data: currentConfig } = useSiteConfig(pubkey ?? undefined, identifier);
+  const { mutateAsync: updateConfig } = useUpdateSiteConfig(identifier);
 
   return useMutation({
     mutationFn: async (includes: SiteConfig['includes']) => {

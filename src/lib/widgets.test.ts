@@ -129,7 +129,7 @@ describe('Widget Registry', () => {
     it('returns all widget types', () => {
       const types = getAvailableWidgetTypes();
 
-      expect(types).toHaveLength(11);
+      expect(types).toHaveLength(12);
       expect(types).toContain('profile');
       expect(types).toContain('top8');
       expect(types).toContain('music');
@@ -140,7 +140,7 @@ describe('Widget Registry', () => {
     it('returns all widget definitions', () => {
       const definitions = getAllWidgetDefinitions();
 
-      expect(definitions).toHaveLength(11);
+      expect(definitions).toHaveLength(12);
       expect(definitions.every((d) => d.type && d.name)).toBe(true);
     });
   });

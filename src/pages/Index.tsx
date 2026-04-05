@@ -10,7 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { TrendingUp, Flame, Clock, Video, Users, Hash, Crown, Sparkles } from 'lucide-react';
+import { TrendingUp, Flame, Clock, Video, Hash, Crown, Sparkles } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import type { VideoSort } from '@/lib/divine-api';
 import { useState } from 'react';

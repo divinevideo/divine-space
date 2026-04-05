@@ -1,13 +1,9 @@
-import { useState, useMemo, useCallback, type FC } from 'react';
-// @ts-expect-error - WidthProvider is exported at runtime but not in the type declarations
-import GridLayout, { WidthProvider as RGLWidthProvider } from 'react-grid-layout';
-import type ReactGridLayout from 'react-grid-layout';
+import { useState, useMemo, useCallback } from 'react';
+import GridLayout, {
+  WidthProvider as RGLWidthProvider,
+  type Layout as GridLayoutItems,
+} from 'react-grid-layout/legacy';
 import { Plus, X, User, Users, Music, Link, Video, Smile, Image, MessageSquare, ExternalLink, Type, Square } from 'lucide-react';
-
-// WidthProvider is exported at runtime but not in the type declarations at top level
-const WidthProvider = RGLWidthProvider as (
-  component: typeof GridLayout
-) => FC<ReactGridLayout.ReactGridLayoutProps & ReactGridLayout.WidthProviderProps>;
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -18,6 +14,7 @@ import {
 import { cn } from '@/lib/utils';
 import type { BentoLayout, Widget, WidgetType } from '@/types/widgets';
 import { createWidget } from '@/types/widgets';
+import { BentoGridWidget } from '@/components/BentoGrid';
 import {
   widgetRegistry,
   getAllWidgetDefinitions,
@@ -30,7 +27,7 @@ import {
 import 'react-grid-layout/css/styles.css';
 
 // Create a responsive grid layout with automatic width handling
-const ResponsiveGridLayout = WidthProvider(GridLayout);
+const ResponsiveGridLayout = RGLWidthProvider(GridLayout);
 
 // Map icon names from widget registry to actual icon components
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -75,7 +72,7 @@ export function BentoGridEditor({
   const [isAddWidgetOpen, setIsAddWidgetOpen] = useState(false);
 
   // Convert widgets to react-grid-layout format with constraints
-  const gridLayout: ReactGridLayout.Layout[] = useMemo(() => {
+  const gridLayout: GridLayoutItems = useMemo(() => {
     return layout.widgets.map((widget) => {
       const minSize = getMinSize(widget.type);
       const maxSize = getMaxSize(widget.type);
@@ -95,7 +92,7 @@ export function BentoGridEditor({
 
   // Handle layout change from react-grid-layout
   const handleLayoutChange = useCallback(
-    (newGridLayout: ReactGridLayout.Layout[]) => {
+    (newGridLayout: GridLayoutItems) => {
       const updatedWidgets = layout.widgets.map((widget) => {
         const gridItem = newGridLayout.find((item) => item.i === widget.id);
         if (gridItem) {
@@ -250,7 +247,7 @@ interface WidgetEditorItemProps {
 /**
  * Individual widget item in the editor with controls for editing and deletion.
  */
-function WidgetEditorItem({ widget, onRemove }: WidgetEditorItemProps) {
+function WidgetEditorItem({ widget, pubkey, onRemove }: WidgetEditorItemProps) {
   const definition = widgetRegistry[widget.type];
   const IconComponent = getIconComponent(definition.icon);
 
@@ -277,12 +274,9 @@ function WidgetEditorItem({ widget, onRemove }: WidgetEditorItemProps) {
         </Button>
       </div>
 
-      {/* Widget Content Placeholder */}
-      <CardContent className="p-4 flex items-center justify-center h-[calc(100%-40px)]">
-        <div className="text-center text-muted-foreground text-sm">
-          <IconComponent className="h-8 w-8 mx-auto mb-2 opacity-50" />
-          <p>{definition.name}</p>
-          <p className="text-xs mt-1">{widget.w}x{widget.h}</p>
+      <CardContent className="h-[calc(100%-40px)] overflow-hidden p-3">
+        <div className="pointer-events-none h-full">
+          <BentoGridWidget widget={widget} pubkey={pubkey} />
         </div>
       </CardContent>
     </Card>

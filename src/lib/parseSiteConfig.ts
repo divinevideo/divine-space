@@ -171,9 +171,13 @@ export function parseSiteConfig(event: NostrEvent | null | undefined): SiteConfi
 /**
  * Convert SiteConfigInput to event tags
  */
-export function siteConfigToTags(input: SiteConfigInput, pubkey: string): string[][] {
+export function siteConfigToTags(
+  input: SiteConfigInput,
+  pubkey: string,
+  identifier = 'profile'
+): string[][] {
   const tags: string[][] = [
-    ['d', 'profile'],
+    ['d', identifier],
     ['alt', 'Divine Space site configuration'],
   ];
 

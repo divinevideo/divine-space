@@ -13,6 +13,7 @@ import { LinksWidget } from '@/components/widgets/LinksWidget';
 import { MoodWidget } from '@/components/widgets/MoodWidget';
 import { VideosWidget } from '@/components/widgets/VideosWidget';
 import { NotesWidget } from '@/components/widgets/NotesWidget';
+import { EventsWidget } from '@/components/widgets/EventsWidget';
 import { EmbedWidget } from '@/components/widgets/EmbedWidget';
 import { TextWidget } from '@/components/widgets/TextWidget';
 
@@ -30,6 +31,12 @@ export interface BentoGridProps {
   className?: string;
 }
 
+export interface BentoGridWidgetProps {
+  widget: Widget;
+  pubkey: string;
+  isEditing?: boolean;
+}
+
 /**
  * Map of widget types to their corresponding components.
  * Only includes implemented widgets.
@@ -42,6 +49,7 @@ const WIDGET_COMPONENTS: Partial<Record<WidgetType, React.ComponentType<{ widget
   mood: MoodWidget,
   videos: VideosWidget,
   notes: NotesWidget,
+  events: EventsWidget,
   embed: EmbedWidget,
   text: TextWidget,
 };
@@ -58,6 +66,16 @@ function PlaceholderWidget({ widget }: { widget: Widget }) {
       <span className="text-muted-foreground text-sm">{widget.type}</span>
     </div>
   );
+}
+
+export function BentoGridWidget({ widget, pubkey, isEditing = false }: BentoGridWidgetProps) {
+  const WidgetComponent = WIDGET_COMPONENTS[widget.type];
+
+  if (WidgetComponent) {
+    return <WidgetComponent widget={widget} pubkey={pubkey} isEditing={isEditing} />;
+  }
+
+  return <PlaceholderWidget widget={widget} />;
 }
 
 /**
@@ -85,8 +103,6 @@ export function BentoGrid({ layout, pubkey, isEditing = false, className }: Bent
       }}
     >
       {widgets.map((widget) => {
-        const WidgetComponent = WIDGET_COMPONENTS[widget.type];
-
         return (
           <div
             key={widget.id}
@@ -95,11 +111,7 @@ export function BentoGrid({ layout, pubkey, isEditing = false, className }: Bent
               gridRow: `${widget.y + 1} / span ${widget.h}`,
             }}
           >
-            {WidgetComponent ? (
-              <WidgetComponent widget={widget} pubkey={pubkey} isEditing={isEditing} />
-            ) : (
-              <PlaceholderWidget widget={widget} />
-            )}
+            <BentoGridWidget widget={widget} pubkey={pubkey} isEditing={isEditing} />
           </div>
         );
       })}

@@ -3,7 +3,7 @@ import { Layout } from '@/components/Layout';
 import { VideoCard, VideoCardSkeleton } from '@/components/VideoCard';
 import { useDivineVideosInfinite } from '@/hooks/useDivineVideos';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { TrendingUp, Flame, Clock, Loader2, Video, Play } from 'lucide-react';
 import { useInView } from 'react-intersection-observer';

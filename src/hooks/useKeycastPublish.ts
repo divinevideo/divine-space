@@ -4,11 +4,15 @@ import { useKeycast } from "@/contexts/KeycastContext";
 import { useCurrentUser } from "./useCurrentUser";
 import type { NostrEvent, NostrSigner } from "@nostrify/nostrify";
 
+export type KeycastPublishInput =
+  Pick<NostrEvent, 'kind'> &
+  Partial<Pick<NostrEvent, 'content' | 'tags' | 'created_at'>>;
+
 /**
  * Publish Nostr events using Keycast signer or fallback to standard Nostr login
  * Supports: Keycast OAuth, NIP-07 extension, NSEC, NIP-46 bunker
  */
-export function useKeycastPublish(): UseMutationResult<NostrEvent, Error, Omit<NostrEvent, 'id' | 'pubkey' | 'sig'>> {
+export function useKeycastPublish(): UseMutationResult<NostrEvent, Error, KeycastPublishInput> {
   const { nostr } = useNostr();
   const { signer: keycastSigner, pubkey: keycastPubkey } = useKeycast();
   const { user: nostrifyUser } = useCurrentUser();
@@ -18,7 +22,7 @@ export function useKeycastPublish(): UseMutationResult<NostrEvent, Error, Omit<N
   const pubkey = keycastPubkey ?? nostrifyUser?.pubkey;
 
   return useMutation({
-    mutationFn: async (t: Omit<NostrEvent, 'id' | 'pubkey' | 'sig'>) => {
+    mutationFn: async (t: KeycastPublishInput) => {
       if (!signer || !pubkey) {
         throw new Error("User is not logged in");
       }
