@@ -10,7 +10,7 @@ const API_BASE = 'https://relay.divine.video/api';
 export interface VideoListItem {
   id: string;
   pubkey: string;
-  created_at: string;
+  created_at: string | number;
   kind: number;
   d_tag: string;
   title: string;
@@ -49,6 +49,18 @@ export interface VideoWithEvent {
   };
   stats: VideoStats;
 }
+
+interface VideoDetailStats extends VideoStats {
+  author_name?: string;
+  author_avatar?: string;
+}
+
+type VideoDetailResponse =
+  | (VideoListItem & { sig: string; tags: string[][] })
+  | {
+      event: VideoWithEvent['event'];
+      stats: VideoDetailStats;
+    };
 
 export interface VideosEventsResponse {
   videos: VideoWithEvent[];
@@ -149,6 +161,49 @@ export type LeaderboardPeriod = 'day' | 'week' | 'month' | 'year' | 'alltime';
 
 // API functions
 
+function getTagValue(tags: string[][], name: string): string {
+  return tags.find(([tag]) => tag === name)?.[1] ?? '';
+}
+
+function getImetaValue(tags: string[][], key: 'url' | 'image'): string {
+  const imetaTag = tags.find(([tag]) => tag === 'imeta');
+  if (!imetaTag) return '';
+
+  return imetaTag
+    .slice(1)
+    .find((entry) => entry.startsWith(`${key} `))
+    ?.slice(key.length + 1) ?? '';
+}
+
+function normalizeVideoDetail(data: VideoDetailResponse): VideoListItem & { sig: string; tags: string[][] } {
+  if (!('event' in data)) {
+    return data;
+  }
+
+  const { event, stats } = data;
+
+  return {
+    id: event.id,
+    pubkey: event.pubkey,
+    created_at: event.created_at,
+    kind: event.kind,
+    d_tag: getTagValue(event.tags, 'd'),
+    title: getTagValue(event.tags, 'title') || getTagValue(event.tags, 'alt'),
+    content: event.content,
+    thumbnail: getImetaValue(event.tags, 'image'),
+    video_url: getImetaValue(event.tags, 'url'),
+    reactions: stats.reactions ?? 0,
+    comments: stats.comments ?? 0,
+    reposts: stats.reposts ?? 0,
+    engagement_score: stats.engagement_score ?? 0,
+    trending_score: stats.trending_score ?? 0,
+    author_name: stats.author_name,
+    author_avatar: stats.author_avatar,
+    sig: event.sig,
+    tags: event.tags,
+  };
+}
+
 export async function fetchVideos(options: {
   sort?: VideoSort;
   kind?: number;
@@ -192,7 +247,14 @@ export async function fetchVideosWithEvents(options: {
 export async function fetchVideo(id: string): Promise<VideoListItem & { sig: string; tags: string[][] }> {
   const response = await fetch(`${API_BASE}/videos/${id}`);
   if (!response.ok) throw new Error('Failed to fetch video');
-  return response.json();
+  const data = await response.json() as VideoDetailResponse;
+  const video = normalizeVideoDetail(data);
+
+  if (!video.id || !video.pubkey || !video.tags || !video.sig) {
+    throw new Error('Invalid video detail response');
+  }
+
+  return video;
 }
 
 export async function fetchVideoStats(id: string): Promise<VideoStats> {
