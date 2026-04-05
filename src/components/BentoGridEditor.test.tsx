@@ -14,7 +14,7 @@ vi.mock('@/components/widgets/Top8Widget', () => ({
 
 // Mock react-grid-layout since it requires a DOM environment
 // Note: The component uses require() so the mock needs to work with CJS interop
-vi.mock('react-grid-layout', async () => {
+vi.mock('react-grid-layout/legacy', async () => {
   const MockGridLayout = ({ children, onLayoutChange, layout }: {
     children?: React.ReactNode;
     onLayoutChange?: (layout: Array<{ i: string; x: number; y: number; w: number; h: number }>) => void;

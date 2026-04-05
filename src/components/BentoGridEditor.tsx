@@ -1,13 +1,10 @@
-import { useState, useMemo, useCallback, type FC } from 'react';
-// @ts-expect-error - WidthProvider is exported at runtime but not in the type declarations
-import GridLayout, { WidthProvider as RGLWidthProvider } from 'react-grid-layout';
-import type ReactGridLayout from 'react-grid-layout';
+import { useState, useMemo, useCallback } from 'react';
+import GridLayout, {
+  WidthProvider as RGLWidthProvider,
+  type Layout as GridLayoutItems,
+  type LayoutItem as GridLayoutItem,
+} from 'react-grid-layout/legacy';
 import { Plus, X, User, Users, Music, Link, Video, Smile, Image, MessageSquare, ExternalLink, Type, Square } from 'lucide-react';
-
-// WidthProvider is exported at runtime but not in the type declarations at top level
-const WidthProvider = RGLWidthProvider as (
-  component: typeof GridLayout
-) => FC<ReactGridLayout.ReactGridLayoutProps & ReactGridLayout.WidthProviderProps>;
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -31,7 +28,7 @@ import {
 import 'react-grid-layout/css/styles.css';
 
 // Create a responsive grid layout with automatic width handling
-const ResponsiveGridLayout = WidthProvider(GridLayout);
+const ResponsiveGridLayout = RGLWidthProvider(GridLayout);
 
 // Map icon names from widget registry to actual icon components
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -76,7 +73,7 @@ export function BentoGridEditor({
   const [isAddWidgetOpen, setIsAddWidgetOpen] = useState(false);
 
   // Convert widgets to react-grid-layout format with constraints
-  const gridLayout: ReactGridLayout.Layout[] = useMemo(() => {
+  const gridLayout: GridLayoutItems = useMemo(() => {
     return layout.widgets.map((widget) => {
       const minSize = getMinSize(widget.type);
       const maxSize = getMaxSize(widget.type);
@@ -96,7 +93,7 @@ export function BentoGridEditor({
 
   // Handle layout change from react-grid-layout
   const handleLayoutChange = useCallback(
-    (newGridLayout: ReactGridLayout.Layout[]) => {
+    (newGridLayout: GridLayoutItems) => {
       const updatedWidgets = layout.widgets.map((widget) => {
         const gridItem = newGridLayout.find((item) => item.i === widget.id);
         if (gridItem) {
