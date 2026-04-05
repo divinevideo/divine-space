@@ -91,7 +91,10 @@ export function Top8Friends({ pubkey, isOwnProfile, className, presetStyle }: To
   const hasCustomTop8 = customTopFriends.length > 0;
   
   // Convert following pubkeys to TopFriend format for fallback
-  const followingAsFriends: TopFriend[] = followingPubkeys.map(pk => ({ pubkey: pk }));
+  const followingAsFriends: TopFriend[] = followingPubkeys.map((pk, index) => ({
+    pubkey: pk,
+    position: index + 1,
+  }));
   
   // Use custom top8 if available, otherwise use following list
   const topFriends = hasCustomTop8 ? customTopFriends : followingAsFriends;

@@ -194,22 +194,24 @@ export default function Search() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                     {profiles.map((user) => {
                       const npub = nip19.npubEncode(user.pubkey);
+                      const profile = user.profile ?? {};
+                      const stats = user.stats ?? { video_count: 0 };
                       return (
                         <Link key={user.pubkey} to={`/${npub}`}>
                           <Card className="hover:border-primary/30 transition-colors">
                             <CardContent className="p-4 flex items-center gap-4">
                               <Avatar className="h-14 w-14 border-2 border-border">
-                                <AvatarImage src={user.profile.picture} />
+                                <AvatarImage src={profile.picture} />
                                 <AvatarFallback className="bg-primary/10 text-primary">
-                                  {(user.profile.name || 'A')[0].toUpperCase()}
+                                  {(profile.name || 'A')[0].toUpperCase()}
                                 </AvatarFallback>
                               </Avatar>
                               <div className="min-w-0 flex-1">
                                 <p className="font-semibold truncate">
-                                  {user.profile.display_name || user.profile.name || 'Anonymous'}
+                                  {profile.display_name || profile.name || 'Anonymous'}
                                 </p>
                                 <p className="text-sm text-muted-foreground truncate">
-                                  {user.stats.video_count} videos
+                                  {stats.video_count} videos
                                 </p>
                               </div>
                             </CardContent>
