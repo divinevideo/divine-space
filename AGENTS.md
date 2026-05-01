@@ -1207,3 +1207,11 @@ The validation ensures code quality and catches errors before deployment, regard
 If git is available in your environment (through a `shell` tool, or other git-specific tools), you should utilize `git log` to understand project history. Use `git status` and `git diff` to check the status of your changes, and if you make a mistake use `git checkout` to restore files.
 
 When your changes are complete and validated, create a git commit with a descriptive message summarizing your changes.
+
+## Repo Guardrails
+
+PR titles must use Conventional Commit format: `type(scope): summary` or `type: summary`, and the correct title should be set when the PR is opened rather than fixed later. If the PR title changes after opening, verify that the semantic PR title check reruns successfully.
+
+Keep PRs tightly scoped. Do not mix unrelated cleanup, formatting churn, or speculative refactors into the same change. Temporary or transitional code must include `TODO(#issue):` with the tracking issue for removal.
+
+Public issues, PRs, branch names, screenshots, and descriptions must not mention corporate partners, customers, brands, campaign names, or other sensitive external identities unless a maintainer explicitly approves it. Use generic descriptors instead.
