@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { User, Settings as SettingsIcon, Bell, Globe, Check, X, Loader2, ExternalLink } from 'lucide-react';
 import { LoginArea } from '@/components/auth/LoginArea';
+import { ChromeSkinPicker } from '@/components/ChromeSkinPicker';
 import { useToast } from '@/hooks/useToast';
 
 function ClaimUsernameCard() {
@@ -206,6 +207,8 @@ export default function Settings() {
               Manage your profile and preferences
             </p>
           </div>
+
+          <ChromeSkinPicker />
 
           <Tabs defaultValue="profile">
             <TabsList className="bg-muted/50 mb-6">
