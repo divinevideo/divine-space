@@ -142,7 +142,7 @@ async function loadTop8(pubkey: string) {
 ### Where Divine Can Extend
 
 1. **Site Event Tags**: Add custom tags to Kind 30512 for layout
-2. **Theme Customizations**: Store AI-generated CSS in content
+2. **Theme Customizations**: Store custom CSS in content
 3. **Widget Positions**: Define grid positions in standardized format
 
 ### Extension Format

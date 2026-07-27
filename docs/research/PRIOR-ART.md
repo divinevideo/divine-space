@@ -104,7 +104,7 @@ This document captures research on existing Nostr link-in-bio apps, profile buil
 
 ---
 
-## Shakespeare.diy Deep Dive
+## AI Site Builder Deep Dive
 
 ### Technology
 - **Framework**: React PWA
@@ -124,10 +124,6 @@ This document captures research on existing Nostr link-in-bio apps, profile buil
 2. AI generates code
 3. Compiled in-browser
 4. Deployed to Nostr/Blossom
-
-### Source Code
-- Repository: [gitlab.com/soapbox-pub/shakespeare](https://gitlab.com/soapbox-pub/shakespeare)
-- License: AGPL-3.0
 
 ---
 
@@ -248,7 +244,7 @@ theme/
 
 1. **Bento Grid Layout** - No one has this
 2. **Drag-and-drop Widget Positioning** - No one has this
-3. **AI Theme Generation** - Shakespeare has for websites, not profiles
+3. **AI Theme Generation** - AI site builders have it for websites, not profiles
 4. **Variable Widget Sizes** - All use linear lists
 5. **Rich Embeds** - Limited across ecosystem
 
@@ -283,7 +279,6 @@ theme/
 ### Apps
 - [Nostree](https://nostree.me)
 - [npub.pro](https://npub.pro)
-- [Shakespeare.diy](https://shakespeare.diy)
 - [NostrLink](https://nostrlink.app)
 - [Listr](https://listr.lol)
 
@@ -297,7 +292,6 @@ theme/
 ### GitHub
 - [linktr-nostr (Nostree)](https://github.com/gzuuus/linktr-nostr)
 - [nostrsite (npub.pro)](https://github.com/nostrband/nostrsite)
-- [shakespeare (Soapbox)](https://gitlab.com/soapbox-pub/shakespeare)
 - [awesome-nostr](https://github.com/aljazceru/awesome-nostr)
 
 ### Articles

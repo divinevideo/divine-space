@@ -1,6 +1,6 @@
 # Implementation: Phase 3 - AI Theme Generator
 
-> **Goal**: Enable natural language theme customization, inspired by Shakespeare.diy.
+> **Goal**: Enable natural language theme customization, inspired by AI site builders.
 
 ## Overview
 
@@ -182,7 +182,7 @@ Respond ONLY with valid JSON. No explanation needed.`;
 
 ## Task 3.2: Integrate AI Provider
 
-### Using Existing Shakespeare Hook
+### Using Existing AI Chat Hook
 
 ```typescript
 // src/hooks/useThemeAI.ts
@@ -237,10 +237,10 @@ export interface AIProvider {
 }
 
 export const providers: Record<string, AIProvider> = {
-  shakespeare: {
-    name: 'Shakespeare AI',
+  builtin: {
+    name: 'Built-in AI',
     chat: async (messages) => {
-      // Use Shakespeare API
+      // Use built-in AI chat API
     },
   },
   openrouter: {

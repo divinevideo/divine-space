@@ -6,7 +6,7 @@
 
 Divine-Space will evolve from a custom MySpace-inspired profile system to a fully interoperable Nostr profile builder that:
 - Uses standard NIPs for maximum ecosystem compatibility
-- Supports both Ghost themes (NIP-512) and AI-generated themes (Shakespeare-style)
+- Supports both Ghost themes (NIP-512) and AI-generated themes
 - Provides drag-and-drop bento grid layouts
 - Maintains unique MySpace features (Top 8, music, themes)
 
@@ -134,7 +134,7 @@ Divine-Space will evolve from a custom MySpace-inspired profile system to a full
 
 ## Phase 3: AI Theme Generator
 
-**Goal**: Enable users to customize themes via natural language, Shakespeare-style.
+**Goal**: Enable users to customize themes via natural language.
 
 ### Tasks
 
@@ -146,7 +146,7 @@ Divine-Space will evolve from a custom MySpace-inspired profile system to a full
 
 - [ ] **3.2** Integrate AI Provider
   - [ ] Add OpenRouter/Claude/GPT-4 support
-  - [ ] Use existing Shakespeare AI hook
+  - [ ] Use existing AI chat hook
   - [ ] Implement rate limiting
   - [ ] Add cost tracking
   - [ ] Write provider tests
