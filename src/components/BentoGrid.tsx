@@ -16,6 +16,10 @@ import { NotesWidget } from '@/components/widgets/NotesWidget';
 import { EventsWidget } from '@/components/widgets/EventsWidget';
 import { EmbedWidget } from '@/components/widgets/EmbedWidget';
 import { TextWidget } from '@/components/widgets/TextWidget';
+import { BlurbsWidget } from '@/components/widgets/BlurbsWidget';
+import { ContactActionsWidget } from '@/components/widgets/ContactActionsWidget';
+import { ProfileDetailsWidget } from '@/components/widgets/ProfileDetailsWidget';
+import { ExtendedNetworkWidget } from '@/components/widgets/ExtendedNetworkWidget';
 
 /**
  * Props for the BentoGrid component.
@@ -52,6 +56,10 @@ const WIDGET_COMPONENTS: Partial<Record<WidgetType, React.ComponentType<{ widget
   events: EventsWidget,
   embed: EmbedWidget,
   text: TextWidget,
+  blurbs: BlurbsWidget,
+  'contact-actions': ContactActionsWidget,
+  'profile-details': ProfileDetailsWidget,
+  'extended-network': ExtendedNetworkWidget,
 };
 
 /**
