@@ -1,7 +1,6 @@
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Play, Menu, X } from 'lucide-react';
-import { useState } from 'react';
 import { LoginArea } from '@/components/auth/LoginArea';
 import { useKeycast } from '@/contexts/KeycastContext';
 import { useLoggedInAccounts } from '@/hooks/useLoggedInAccounts';
@@ -77,6 +76,7 @@ export function Layout({ children }: LayoutProps) {
               <button
                 className="md:hidden p-2"
                 aria-label="Toggle menu"
+                aria-expanded={mobileMenuOpen}
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               >
                 {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -120,7 +120,6 @@ export function Layout({ children }: LayoutProps) {
         <div className="container mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-sm text-muted-foreground">
           <span>divine.space — a place for videos</span>
           <span className="flex items-center gap-3">
-            <Link to="/search" className="hover:underline">about</Link>
             <a href="https://divine.video" target="_blank" rel="noopener noreferrer" className="hover:underline">
               divine.video
             </a>
