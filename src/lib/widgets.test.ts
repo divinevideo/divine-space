@@ -49,6 +49,13 @@ describe('Widget Types', () => {
       expect(isWidgetType('')).toBe(false);
       expect(isWidgetType('widget')).toBe(false);
     });
+
+    it('includes the new myspace anatomy widget types', () => {
+      expect(isWidgetType('extended-network')).toBe(true);
+      expect(isWidgetType('contact-actions')).toBe(true);
+      expect(isWidgetType('profile-details')).toBe(true);
+      expect(isWidgetType('blurbs')).toBe(true);
+    });
   });
 
   describe('createWidget', () => {
@@ -123,13 +130,20 @@ describe('Widget Registry', () => {
       expect(definition.type).toBe('profile');
       expect(definition.name).toBe('Profile');
     });
+
+    it('has registry entries for the new widget types', () => {
+      expect(getWidgetDefinition('extended-network').name).toBe('Profile Header');
+      expect(getWidgetDefinition('contact-actions').name).toBe('Contact Actions');
+      expect(getWidgetDefinition('profile-details').name).toBe('Details');
+      expect(getWidgetDefinition('blurbs').name).toBe('Blurbs');
+    });
   });
 
   describe('getAvailableWidgetTypes', () => {
     it('returns all widget types', () => {
       const types = getAvailableWidgetTypes();
 
-      expect(types).toHaveLength(12);
+      expect(types).toHaveLength(16);
       expect(types).toContain('profile');
       expect(types).toContain('top8');
       expect(types).toContain('music');
@@ -140,7 +154,7 @@ describe('Widget Registry', () => {
     it('returns all widget definitions', () => {
       const definitions = getAllWidgetDefinitions();
 
-      expect(definitions).toHaveLength(12);
+      expect(definitions).toHaveLength(16);
       expect(definitions.every((d) => d.type && d.name)).toBe(true);
     });
   });
