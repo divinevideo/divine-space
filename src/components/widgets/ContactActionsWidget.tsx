@@ -22,9 +22,15 @@ export function ContactActionsWidget({ pubkey }: ContactActionsWidgetProps) {
 
   return (
     <div className="h-full w-full overflow-auto border border-border bg-card p-3 space-y-1">
-      <Link to="/messages" className={rowClass}>
-        ✉ message
-      </Link>
+      {disabled ? (
+        <button className={rowClass} disabled>
+          ✉ message
+        </button>
+      ) : (
+        <Link to={`/messages?with=${pubkey}`} className={rowClass}>
+          ✉ message
+        </Link>
+      )}
       <button
         className={rowClass}
         disabled={disabled}
@@ -34,10 +40,10 @@ export function ContactActionsWidget({ pubkey }: ContactActionsWidgetProps) {
       >
         ➕ {isFollowing ? 'remove from friends' : 'add to friends'}
       </button>
-      <button className={rowClass} disabled={disabled}>
+      <button className={rowClass} disabled title="coming soon">
         ⭐ add to favorites
       </button>
-      <button className={rowClass} disabled={disabled}>
+      <button className={rowClass} disabled title="coming soon">
         🚩 block user
       </button>
     </div>

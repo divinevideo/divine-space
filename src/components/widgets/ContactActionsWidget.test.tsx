@@ -27,4 +27,13 @@ describe('ContactActionsWidget', () => {
     expect(screen.getByText(/add to friends/i)).toBeInTheDocument();
     expect(screen.getByText(/add to favorites/i)).toBeInTheDocument();
   });
+
+  it('disables add to friends when logged out', () => {
+    render(
+      <TestApp>
+        <ContactActionsWidget widget={widget} pubkey="abc123" isEditing={false} />
+      </TestApp>
+    );
+    expect(screen.getByRole('button', { name: /add to friends/i })).toBeDisabled();
+  });
 });
