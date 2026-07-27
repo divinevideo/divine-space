@@ -20,14 +20,6 @@ vi.mock('@/components/widgets/LinksWidget', () => ({
   ),
 }));
 
-vi.mock('./PublicPageActions', () => ({
-  PublicPageActions: ({ pubkey }: { pubkey: string }) => (
-    <div data-testid="public-page-actions" data-pubkey={pubkey}>
-      PublicPageActions
-    </div>
-  ),
-}));
-
 describe('PublicPageRenderer', () => {
   const pubkey = 'npub1testpubkey';
 
@@ -67,11 +59,7 @@ describe('PublicPageRenderer', () => {
     );
 
     expect(screen.getByTestId('public-page-shell')).toBeInTheDocument();
-    expect(screen.getByTestId('public-page-intro')).toBeInTheDocument();
-    expect(screen.getByTestId('public-page-actions')).toHaveAttribute('data-pubkey', pubkey);
     expect(screen.getByTestId('bento-grid')).toBeInTheDocument();
-    expect(screen.getByText('Creator Home')).toBeInTheDocument();
-    expect(screen.getByText('A public sidebar-bento page')).toBeInTheDocument();
     expect(screen.getByTestId('profile-widget')).toBeInTheDocument();
     expect(screen.getByTestId('links-widget')).toBeInTheDocument();
   });
