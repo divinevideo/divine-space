@@ -10,6 +10,7 @@ import { useDivineVideos } from '@/hooks/useDivineVideos';
 import { useDivineTrendingHashtags } from '@/hooks/useDivineSearch';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
+import { Skeleton } from '@/components/ui/skeleton';
 import type { VideoSort } from '@/lib/divine-api';
 
 const SORTS: { id: VideoSort; label: string }[] = [
@@ -69,7 +70,7 @@ export default function Index() {
   const { data: trendingHashtags } = useDivineTrendingHashtags();
 
   // Featured pages: authors of the most recent published site configs (kind 30512)
-  const { data: featuredPubkeys } = useQuery({
+  const { data: featuredPubkeys, isLoading: featuredLoading } = useQuery({
     queryKey: ['featured-pages'],
     queryFn: async () => {
       const events = await nostr.query([{ kinds: [30512], limit: 20 }]);
@@ -107,7 +108,13 @@ export default function Index() {
             {/* Featured pages */}
             <section>
               <h2 className="text-lg font-bold mb-3">featured pages</h2>
-              {featuredPubkeys && featuredPubkeys.length > 0 ? (
+              {featuredLoading ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <Skeleton key={i} className="aspect-[4/3] w-full" />
+                  ))}
+                </div>
+              ) : featuredPubkeys && featuredPubkeys.length > 0 ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {featuredPubkeys.map((pk) => (
                     <FeaturedPageCard key={pk} pubkey={pk} />
@@ -173,7 +180,8 @@ export default function Index() {
               <h3 className="text-sm font-bold mb-2">explore</h3>
               <button
                 onClick={handleRandomPage}
-                className="text-sm text-primary underline underline-offset-4"
+                disabled={!featuredPubkeys?.length}
+                className="text-sm text-primary underline underline-offset-4 disabled:text-muted-foreground disabled:no-underline disabled:cursor-default"
               >
                 🎲 random page
               </button>
