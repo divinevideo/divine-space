@@ -17,7 +17,11 @@ export function BlurbsWidget({ widget, pubkey }: BlurbsWidgetProps) {
       <section>
         <h3 className="font-bold text-primary">about me:</h3>
         <p className="whitespace-pre-wrap">
-          {about || <span className="text-muted-foreground">(nothing here yet)</span>}
+          {author.isLoading ? (
+            <span className="text-muted-foreground">loading...</span>
+          ) : (
+            about || <span className="text-muted-foreground">(nothing here yet)</span>
+          )}
         </p>
       </section>
       <section>

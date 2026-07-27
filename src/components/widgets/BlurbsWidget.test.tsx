@@ -26,7 +26,7 @@ describe('BlurbsWidget', () => {
     } as ReturnType<typeof useAuthor>);
   });
 
-  it('renders about-me and meet sections with orange headers', () => {
+  it('renders both section headers', () => {
     render(
       <TestApp>
         <BlurbsWidget widget={widget} pubkey="abc123" isEditing={false} />
@@ -53,6 +53,23 @@ describe('BlurbsWidget', () => {
       </TestApp>
     );
     expect(screen.getByText('Cool people')).toBeInTheDocument();
+  });
+
+  it('shows loading state while profile is fetching', () => {
+    mockUseAuthor.mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      isError: false,
+      error: null,
+    } as ReturnType<typeof useAuthor>);
+
+    render(
+      <TestApp>
+        <BlurbsWidget widget={widget} pubkey="abc123" isEditing={false} />
+      </TestApp>
+    );
+    expect(screen.getByText(/loading/i)).toBeInTheDocument();
+    expect(screen.queryByText(/nothing here yet/i)).not.toBeInTheDocument();
   });
 
   it('shows empty state when no about text is available', () => {

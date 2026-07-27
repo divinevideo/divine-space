@@ -11,3 +11,4 @@ export { VideosWidget } from './VideosWidget';
 export { NotesWidget } from './NotesWidget';
 export { EmbedWidget } from './EmbedWidget';
 export { TextWidget } from './TextWidget';
+export { BlurbsWidget } from './BlurbsWidget';
