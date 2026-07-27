@@ -14,3 +14,4 @@ export { TextWidget } from './TextWidget';
 export { BlurbsWidget } from './BlurbsWidget';
 export { ContactActionsWidget } from './ContactActionsWidget';
 export { ProfileDetailsWidget } from './ProfileDetailsWidget';
+export { ExtendedNetworkWidget } from './ExtendedNetworkWidget';
