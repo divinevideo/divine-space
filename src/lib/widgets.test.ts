@@ -343,7 +343,7 @@ describe('Default Layouts', () => {
     it('returns all templates', () => {
       const templates = getAllLayoutTemplates();
 
-      expect(templates).toHaveLength(5);
+      expect(templates).toHaveLength(6);
     });
   });
 
