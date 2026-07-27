@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { fetchVideo } from './divine-api';
+import { API_BASE, fetchVideo } from './divine-api';
+
+describe('divine-api', () => {
+  it('uses api.divine.video as the canonical REST host', () => {
+    expect(API_BASE).toBe('https://api.divine.video/api');
+  });
+});
 
 describe('fetchVideo', () => {
   afterEach(() => {
