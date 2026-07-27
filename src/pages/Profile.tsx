@@ -136,9 +136,9 @@ export default function Profile({ pubkey, isSubdomain, subdomain }: ProfileProps
       <Layout>
         <div className="container mx-auto px-4 py-8">
           <Skeleton className="h-48 w-full rounded-xl mb-4" />
-          <div className="flex gap-6">
-            <Skeleton className="h-32 w-32 rounded-full -mt-16" />
-            <div className="space-y-2 pt-4">
+          <div className="flex items-center gap-6">
+            <Skeleton className="h-32 w-32 rounded-full" />
+            <div className="space-y-2">
               <Skeleton className="h-8 w-48" />
               <Skeleton className="h-4 w-32" />
             </div>
@@ -253,12 +253,10 @@ export default function Profile({ pubkey, isSubdomain, subdomain }: ProfileProps
             />
           ) : (
             <div className={cn(
-              "w-full h-full animated-gradient",
+              "w-full h-full bg-muted",
               myspaceProfile?.theme === 'space' && "stars-bg"
             )} />
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent" />
-          
           {/* Preset style badge for unclaimed profiles */}
           {isUnclaimedProfile && presetInfo && (
             <div className="absolute top-4 right-4">
@@ -420,7 +418,7 @@ export default function Profile({ pubkey, isSubdomain, subdomain }: ProfileProps
             )}
 
             {/* Stats Sidebar */}
-            <Card className="myspace-card">
+            <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-primary" />
@@ -433,7 +431,7 @@ export default function Profile({ pubkey, isSubdomain, subdomain }: ProfileProps
                     <Video className="h-4 w-4" />
                     <span className="text-sm">Videos</span>
                   </div>
-                  <span className="font-bold text-primary">{formatNumber(stats.video_count)}</span>
+                  <span className="font-bold">{formatNumber(stats.video_count)}</span>
                 </div>
                 
                 <div className="flex items-center justify-between py-2 border-b border-border/50">
@@ -441,7 +439,7 @@ export default function Profile({ pubkey, isSubdomain, subdomain }: ProfileProps
                     <Users className="h-4 w-4" />
                     <span className="text-sm">Followers</span>
                   </div>
-                  <span className="font-bold text-pink-500">{formatNumber(social.follower_count)}</span>
+                  <span className="font-bold">{formatNumber(social.follower_count)}</span>
                 </div>
                 
                 <div className="flex items-center justify-between py-2 border-b border-border/50">
@@ -449,7 +447,7 @@ export default function Profile({ pubkey, isSubdomain, subdomain }: ProfileProps
                     <Users className="h-4 w-4" />
                     <span className="text-sm">Following</span>
                   </div>
-                  <span className="font-bold text-cyan-500">{formatNumber(social.following_count)}</span>
+                  <span className="font-bold">{formatNumber(social.following_count)}</span>
                 </div>
 
                 <div className="flex items-center justify-between py-2 border-b border-border/50">
@@ -457,7 +455,7 @@ export default function Profile({ pubkey, isSubdomain, subdomain }: ProfileProps
                     <Eye className="h-4 w-4" />
                     <span className="text-sm">Views</span>
                   </div>
-                  <span className="font-bold text-purple-500">{formatNumber(stats.total_reactions)}</span>
+                  <span className="font-bold">{formatNumber(stats.total_reactions)}</span>
                 </div>
                 
                 <div className="flex items-center justify-between py-2">
@@ -576,7 +574,7 @@ export default function Profile({ pubkey, isSubdomain, subdomain }: ProfileProps
                 {postsLoading ? (
                   <div className="space-y-4">
                     {Array.from({ length: 3 }).map((_, i) => (
-                      <Card key={i} className="myspace-card">
+                      <Card key={i}>
                         <CardContent className="py-4">
                           <div className="space-y-2">
                             <Skeleton className="h-4 w-full" />

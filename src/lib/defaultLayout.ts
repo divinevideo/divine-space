@@ -265,6 +265,21 @@ export const creatorLayout: Widget[] = [
 ];
 
 /**
+ * MySpace 1.0 layout - faithful classic anatomy.
+ * Left rail: contact actions + details. Right: blurbs, music, videos, top 8, wall.
+ */
+export const myspaceLayout: Widget[] = [
+  { id: 'extended-network', type: 'extended-network', x: 0, y: 0, w: 4, h: 2 },
+  { id: 'contact-actions', type: 'contact-actions', x: 0, y: 2, w: 1, h: 1 },
+  { id: 'profile-details', type: 'profile-details', x: 0, y: 3, w: 1, h: 1 },
+  { id: 'music', type: 'music', x: 0, y: 4, w: 1, h: 1 },
+  { id: 'blurbs', type: 'blurbs', x: 1, y: 2, w: 3, h: 2 },
+  { id: 'videos', type: 'videos', x: 1, y: 4, w: 3, h: 2 },
+  { id: 'top8', type: 'top8', x: 0, y: 5, w: 1, h: 2 },
+  { id: 'notes', type: 'notes', x: 1, y: 6, w: 3, h: 2 },
+];
+
+/**
  * Layout template definition.
  */
 export interface LayoutTemplate {
@@ -284,6 +299,12 @@ export interface LayoutTemplate {
  * All available layout templates.
  */
 export const layoutTemplates: LayoutTemplate[] = [
+  {
+    id: 'myspace',
+    name: 'MySpace 1.0',
+    description: 'The classic: extended network header, blurbs, top 8, wall',
+    widgets: myspaceLayout,
+  },
   {
     id: 'default',
     name: 'Default',

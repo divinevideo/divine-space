@@ -852,3 +852,92 @@
   transform: translateY(-2px);
   box-shadow: 0 10px 40px -10px hsl(var(--primary) / 0.3);
 }
+
+/* ========================================
+   Chrome Skin Token Layer
+   ========================================
+   Site-wide skins via data-chrome-skin on <html>.
+   Aliases shadcn base vars so ui/ components follow skins.
+   Profile page bodies still use scoped .theme-* classes.
+   ======================================== */
+
+@layer base {
+  :root,
+  [data-chrome-skin='plain'] {
+    --chrome-bg: 0 0% 100%;
+    --chrome-fg: 0 0% 13%;
+    --chrome-card: 0 0% 100%;
+    --chrome-muted: 0 0% 45%;
+    --chrome-border: 0 0% 82%;
+    --chrome-accent: 14 100% 50%;
+    --chrome-accent-fg: 0 0% 100%;
+    --chrome-link: 220 90% 40%;
+    --chrome-font: Verdana, Geneva, 'DejaVu Sans', sans-serif;
+    --chrome-radius: 2px;
+  }
+
+  [data-chrome-skin='classic-blue'] {
+    --chrome-bg: 0 0% 94%;
+    --chrome-fg: 0 0% 13%;
+    --chrome-card: 0 0% 100%;
+    --chrome-muted: 0 0% 40%;
+    --chrome-border: 0 0% 70%;
+    --chrome-accent: 220 100% 30%;
+    --chrome-accent-fg: 0 0% 100%;
+    --chrome-link: 220 100% 30%;
+    --chrome-font: Verdana, Geneva, 'DejaVu Sans', sans-serif;
+    --chrome-radius: 0px;
+  }
+
+  [data-chrome-skin='terminal'] {
+    --chrome-bg: 240 10% 6%;
+    --chrome-fg: 140 80% 70%;
+    --chrome-card: 240 10% 9%;
+    --chrome-muted: 140 20% 45%;
+    --chrome-border: 140 30% 25%;
+    --chrome-accent: 140 100% 55%;
+    --chrome-accent-fg: 240 10% 6%;
+    --chrome-link: 180 100% 60%;
+    --chrome-font: 'Courier New', Courier, monospace;
+    --chrome-radius: 0px;
+  }
+
+  [data-chrome-skin='scene-kid'] {
+    --chrome-bg: 300 20% 4%;
+    --chrome-fg: 320 100% 80%;
+    --chrome-card: 300 25% 8%;
+    --chrome-muted: 320 30% 50%;
+    --chrome-border: 320 60% 30%;
+    --chrome-accent: 320 100% 55%;
+    --chrome-accent-fg: 0 0% 100%;
+    --chrome-link: 185 100% 55%;
+    --chrome-font: Verdana, Geneva, 'DejaVu Sans', sans-serif;
+    --chrome-radius: 4px;
+  }
+
+  /* Alias shadcn base vars onto chrome tokens so ui/ components follow skins */
+  [data-chrome-skin] {
+    --background: var(--chrome-bg);
+    --foreground: var(--chrome-fg);
+    --card: var(--chrome-card);
+    --card-foreground: var(--chrome-fg);
+    --popover: var(--chrome-card);
+    --popover-foreground: var(--chrome-fg);
+    --primary: var(--chrome-accent);
+    --primary-foreground: var(--chrome-accent-fg);
+    --secondary: var(--chrome-card);
+    --secondary-foreground: var(--chrome-fg);
+    --muted: var(--chrome-card);
+    --muted-foreground: var(--chrome-muted);
+    --accent: var(--chrome-accent);
+    --accent-foreground: var(--chrome-accent-fg);
+    --border: var(--chrome-border);
+    --input: var(--chrome-border);
+    --ring: var(--chrome-accent);
+    --radius: var(--chrome-radius);
+  }
+
+  [data-chrome-skin] body {
+    font-family: var(--chrome-font);
+  }
+}

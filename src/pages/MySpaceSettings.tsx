@@ -53,6 +53,7 @@ import { useUploadFile } from '@/hooks/useUploadFile';
 import { cn } from '@/lib/utils';
 import { nip19 } from 'nostr-tools';
 import { LoginArea } from '@/components/auth/LoginArea';
+import { ChromeSkinPicker } from '@/components/ChromeSkinPicker';
 import { useRegisterName, useLookupPubkey, useCheckNameAvailability, validateName } from '@/hooks/useDivineSpaceName';
 import {
   Dialog,
@@ -207,6 +208,10 @@ function MySpaceSettingsContent({ pubkey }: { pubkey: string }) {
           <p className="text-muted-foreground">
             Make your profile uniquely yours - just like the good old MySpace days!
           </p>
+        </div>
+
+        <div className="mb-8">
+          <ChromeSkinPicker />
         </div>
 
         <Tabs defaultValue="theme">

@@ -20,7 +20,11 @@ export type WidgetType =
   | 'events'       // Upcoming events
   | 'embed'        // Custom embed (YouTube, etc.)
   | 'text'         // Custom text block
-  | 'spacer';      // Empty spacer
+  | 'spacer'       // Empty spacer
+  | 'extended-network' // "In your extended network" header
+  | 'contact-actions'  // message / add friend / add to faves
+  | 'profile-details'  // status, zodiac, here-for
+  | 'blurbs';          // about me / who I'd like to meet
 
 /**
  * Widget-specific configuration.
@@ -198,7 +202,8 @@ export interface BentoLayout {
 export function isWidgetType(value: string): value is WidgetType {
   const validTypes: WidgetType[] = [
     'profile', 'top8', 'music', 'links', 'videos',
-    'mood', 'gallery', 'notes', 'events', 'embed', 'text', 'spacer'
+    'mood', 'gallery', 'notes', 'events', 'embed', 'text', 'spacer',
+    'extended-network', 'contact-actions', 'profile-details', 'blurbs'
   ];
   return validTypes.includes(value as WidgetType);
 }
