@@ -916,7 +916,6 @@
   }
 
   /* Alias shadcn base vars onto chrome tokens so ui/ components follow skins */
-  :root,
   [data-chrome-skin] {
     --background: var(--chrome-bg);
     --foreground: var(--chrome-fg);
@@ -938,7 +937,7 @@
     --radius: var(--chrome-radius);
   }
 
-  body {
+  [data-chrome-skin] body {
     font-family: var(--chrome-font);
   }
 }
