@@ -386,8 +386,8 @@ async function handleOEmbed(request, url) {
     if (pathParts[0] === 'video' && pathParts[1]) {
       const videoId = pathParts[1];
 
-      // Fetch video data from relay API
-      const videoResponse = await fetch(`https://relay.divine.video/api/videos/${videoId}`, {
+      // Fetch video data from the canonical REST API host
+      const videoResponse = await fetch(`https://api.divine.video/api/videos/${videoId}`, {
         backend: 'divine_relay',
       });
 

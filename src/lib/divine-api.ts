@@ -1,9 +1,9 @@
 /**
  * Divine Video API client
- * REST API endpoints for relay.divine.video
+ * REST API endpoints for api.divine.video
  */
 
-const API_BASE = 'https://relay.divine.video/api';
+export const API_BASE = 'https://api.divine.video/api';
 
 // Types for Divine Video API responses
 

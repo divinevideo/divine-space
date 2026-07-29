@@ -15,6 +15,7 @@
   },
   "private": true,
   "scripts": {
+    "prebuild": "npm ci --silent",
     "build": "js-compute-runtime ./src/index.js ./bin/main.wasm",
     "deploy": "npm run publish-content && npm run build && fastly compute publish",
     "dev:local": "npm run publish-local && fastly compute serve",
