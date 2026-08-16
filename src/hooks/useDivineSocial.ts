@@ -2,7 +2,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
 import { useAuth } from './useAuth';
 import { useKeycastPublish } from './useKeycastPublish';
+import { queryStrict } from '@/lib/relayRead';
+import { latestEvent, nextCreatedAt } from '@/lib/replaceableEvent';
 import type { NostrEvent } from '@nostrify/nostrify';
+
+const CONTACT_LIST_READ_TIMEOUT_MS = 5000;
 
 /**
  * Check if the current user has liked a video
@@ -133,15 +137,25 @@ export function useToggleFollow() {
     }) => {
       if (!isAuthenticated || !pubkey) throw new Error('Must be logged in');
 
-      // Get current contact list
-      const events = await nostr.query([{
-        kinds: [3],
-        authors: [pubkey],
-        limit: 1,
-      }]);
+      // Kind 3 is replaceable, so this publish discards the previous follow
+      // list wholesale. A read that was not answered would look identical to an
+      // empty list and republish a contact list holding only this one follow,
+      // silently dropping every other follow and the relay preferences in
+      // `content`. queryStrict throws rather than returning [] in that case.
+      const events = await queryStrict(
+        nostr,
+        [{
+          kinds: [3],
+          authors: [pubkey],
+          limit: 1,
+        }],
+        { timeoutMs: CONTACT_LIST_READ_TIMEOUT_MS },
+      );
 
-      const existingTags = events[0]?.tags ?? [];
-      const existingContent = events[0]?.content ?? '';
+      // Each relay answers with its own copy, so pick the newest before merging.
+      const existingEvent = latestEvent(events);
+      const existingTags = existingEvent?.tags ?? [];
+      const existingContent = existingEvent?.content ?? '';
 
       let newTags: string[][];
       
@@ -163,6 +177,9 @@ export function useToggleFollow() {
         kind: 3,
         content: existingContent,
         tags: newTags,
+        // Second-granular timestamps tie when two follows land in the same
+        // second, and relays break that tie inconsistently.
+        created_at: nextCreatedAt(existingEvent?.created_at),
       });
 
       return { action: isCurrentlyFollowing ? 'unfollowed' : 'followed' };
