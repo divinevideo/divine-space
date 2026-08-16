@@ -172,7 +172,7 @@ export function useToggleFollow() {
           ([tag, followedPubkey]) => tag === 'p' && followedPubkey === targetPubkey
         );
         newTags = alreadyTagged
-          ? existingTags
+          ? [...existingTags]
           : [
               ...existingTags,
               ['p', targetPubkey, 'wss://relay.divine.video'],
