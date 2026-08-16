@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Plus, X, Wifi, Settings } from 'lucide-react';
+import { useNostr } from '@nostrify/react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -9,17 +10,20 @@ import { useAppContext } from '@/hooks/useAppContext';
 import { useAuth } from '@/hooks/useAuth';
 import { useKeycastPublish } from '@/hooks/useKeycastPublish';
 import { useToast } from '@/hooks/useToast';
+import { queryStrict } from '@/lib/relayRead';
+import { latestEvent, nextCreatedAt } from '@/lib/replaceableEvent';
+import { applyLocalRelayEdit, parseRelayListTags, relayListTags, type RelayListRelay } from '@/lib/relayList';
 
-interface Relay {
-  url: string;
-  read: boolean;
-  write: boolean;
-}
+const RELAY_LIST_KIND = 10002;
+const RELAY_LIST_READ_TIMEOUT_MS = 5000;
+
+type Relay = RelayListRelay;
 
 export function RelayListManager() {
   const { config, updateConfig } = useAppContext();
-  const { isAuthenticated } = useAuth();
-  const { mutate: publishEvent } = useKeycastPublish();
+  const { nostr } = useNostr();
+  const { isAuthenticated, pubkey } = useAuth();
+  const { mutateAsync: publishEvent } = useKeycastPublish();
   const { toast } = useToast();
 
   const [relays, setRelays] = useState<Relay[]>(config.relayMetadata.relays);
@@ -81,13 +85,13 @@ export function RelayListManager() {
     setRelays(newRelays);
     setNewRelayUrl('');
 
-    saveRelays(newRelays);
+    saveRelays(relays, newRelays);
   };
 
   const handleRemoveRelay = (url: string) => {
     const newRelays = relays.filter(r => r.url !== url);
     setRelays(newRelays);
-    saveRelays(newRelays);
+    saveRelays(relays, newRelays);
   };
 
   const handleToggleRead = (url: string) => {
@@ -95,7 +99,7 @@ export function RelayListManager() {
       r.url === url ? { ...r, read: !r.read } : r
     );
     setRelays(newRelays);
-    saveRelays(newRelays);
+    saveRelays(relays, newRelays);
   };
 
   const handleToggleWrite = (url: string) => {
@@ -103,10 +107,10 @@ export function RelayListManager() {
       r.url === url ? { ...r, write: !r.write } : r
     );
     setRelays(newRelays);
-    saveRelays(newRelays);
+    saveRelays(relays, newRelays);
   };
 
-  const saveRelays = (newRelays: Relay[]) => {
+  const saveRelays = (previousRelays: Relay[], newRelays: Relay[]) => {
     const now = Math.floor(Date.now() / 1000);
 
     // Update local config
@@ -119,47 +123,58 @@ export function RelayListManager() {
     }));
 
     // Publish to Nostr if user is logged in
-    if (isAuthenticated) {
-      publishNIP65RelayList(newRelays);
+    if (isAuthenticated && pubkey) {
+      publishNIP65RelayList(previousRelays, newRelays);
     }
   };
 
-  const publishNIP65RelayList = (relayList: Relay[]) => {
-    const tags = relayList.map(relay => {
-      if (relay.read && relay.write) {
-        return ['r', relay.url];
-      } else if (relay.read) {
-        return ['r', relay.url, 'read'];
-      } else if (relay.write) {
-        return ['r', relay.url, 'write'];
-      }
-      // If neither read nor write, don't include (shouldn't happen)
-      return null;
-    }).filter((tag): tag is string[] => tag !== null);
+  const publishNIP65RelayList = async (previousRelays: Relay[], requestedRelays: Relay[]) => {
+    try {
+      const events = await queryStrict(
+        nostr,
+        [{ kinds: [RELAY_LIST_KIND], authors: [pubkey!], limit: 1 }],
+        { timeoutMs: RELAY_LIST_READ_TIMEOUT_MS },
+      );
+      const existingEvent = latestEvent(events);
+      const remoteRelays = existingEvent ? parseRelayListTags(existingEvent.tags) : [];
+      const relayList = applyLocalRelayEdit(previousRelays, requestedRelays, remoteRelays);
+      const createdAt = nextCreatedAt(existingEvent?.created_at);
 
-    publishEvent(
-      {
-        kind: 10002,
+      const published = await publishEvent({
+        kind: RELAY_LIST_KIND,
         content: '',
-        tags,
-      },
-      {
-        onSuccess: () => {
-          toast({
-            title: 'Relay list published',
-            description: 'Your relay list has been published to Nostr.',
-          });
+        tags: relayListTags(relayList),
+        created_at: createdAt,
+      });
+
+      setRelays(relayList);
+      updateConfig((current) => ({
+        ...current,
+        relayMetadata: {
+          relays: relayList,
+          updatedAt: published.created_at,
         },
-        onError: (error) => {
-          console.error('Failed to publish relay list:', error);
-          toast({
-            title: 'Failed to publish relay list',
-            description: 'There was an error publishing your relay list to Nostr.',
-            variant: 'destructive',
-          });
+      }));
+      toast({
+        title: 'Relay list published',
+        description: 'Your relay list has been published to Nostr.',
+      });
+    } catch (error) {
+      console.error('Failed to publish relay list:', error);
+      setRelays(previousRelays);
+      updateConfig((current) => ({
+        ...current,
+        relayMetadata: {
+          relays: previousRelays,
+          updatedAt: config.relayMetadata.updatedAt,
         },
-      }
-    );
+      }));
+      toast({
+        title: 'Failed to publish relay list',
+        description: 'The current relay list could not be read safely. Please try again.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const renderRelayUrl = (url: string): string => {

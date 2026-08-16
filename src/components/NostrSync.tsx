@@ -2,6 +2,11 @@ import { useEffect } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
+import { queryStrict } from '@/lib/relayRead';
+import { latestEvent } from '@/lib/replaceableEvent';
+import { parseRelayListTags } from '@/lib/relayList';
+
+const RELAY_LIST_READ_TIMEOUT_MS = 5000;
 
 /**
  * NostrSync - Syncs user's Nostr data
@@ -20,23 +25,18 @@ export function NostrSync() {
 
     const syncRelaysFromNostr = async () => {
       try {
-        const events = await nostr.query(
+        const events = await queryStrict(
+          nostr,
           [{ kinds: [10002], authors: [user.pubkey], limit: 1 }],
-          { signal: AbortSignal.timeout(5000) }
+          { timeoutMs: RELAY_LIST_READ_TIMEOUT_MS },
         );
 
-        if (events.length > 0) {
-          const event = events[0];
+        const event = latestEvent(events);
+        if (event) {
 
           // Only update if the event is newer than our stored data
           if (event.created_at > config.relayMetadata.updatedAt) {
-            const fetchedRelays = event.tags
-              .filter(([name]) => name === 'r')
-              .map(([_, url, marker]) => ({
-                url,
-                read: !marker || marker === 'read',
-                write: !marker || marker === 'write',
-              }));
+            const fetchedRelays = parseRelayListTags(event.tags);
 
             if (fetchedRelays.length > 0) {
               console.log('Syncing relay list from Nostr:', fetchedRelays);

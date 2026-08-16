@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
 import { useAuth } from './useAuth';
 import { useKeycastPublish } from './useKeycastPublish';
+import { useToast } from './useToast';
 import { queryStrict } from '@/lib/relayRead';
 import { latestEvent, nextCreatedAt } from '@/lib/replaceableEvent';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -126,6 +127,7 @@ export function useToggleFollow() {
   const { nostr } = useNostr();
   const { mutateAsync: publishEvent } = useKeycastPublish();
   const { pubkey, isAuthenticated } = useAuth();
+  const { toast } = useToast();
 
   return useMutation({
     mutationFn: async ({ 
@@ -166,10 +168,15 @@ export function useToggleFollow() {
         );
       } else {
         // Follow - add the p tag
-        newTags = [
-          ...existingTags,
-          ['p', targetPubkey, 'wss://relay.divine.video'],
-        ];
+        const alreadyTagged = existingTags.some(
+          ([tag, followedPubkey]) => tag === 'p' && followedPubkey === targetPubkey
+        );
+        newTags = alreadyTagged
+          ? existingTags
+          : [
+              ...existingTags,
+              ['p', targetPubkey, 'wss://relay.divine.video'],
+            ];
       }
 
       // Publish updated contact list
@@ -193,6 +200,14 @@ export function useToggleFollow() {
       });
       queryClient.invalidateQueries({ 
         queryKey: ['divine', 'user', 'social', pubkey] 
+      });
+    },
+    onError: (error) => {
+      console.error('Failed to update contact list:', error);
+      toast({
+        title: 'Could not update friends',
+        description: 'The current friend list could not be read safely. Please try again.',
+        variant: 'destructive',
       });
     },
   });

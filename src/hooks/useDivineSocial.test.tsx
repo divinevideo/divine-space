@@ -128,6 +128,23 @@ describe('useToggleFollow', () => {
     expect(published.tags).toContainEqual(['p', 'target', 'wss://relay.divine.video']);
   });
 
+  it('does not append a duplicate p tag when the read list already includes the target', async () => {
+    mockReq.mockImplementation(settledWith([
+      createContactList([['p', 'target'], ['p', 'existing-follow']]),
+    ]));
+    mockPublish.mockResolvedValue({ id: 'contacts' });
+
+    const wrapper = createWrapper();
+    const { result } = renderHook(() => useToggleFollow(), { wrapper });
+
+    await result.current.mutateAsync({ targetPubkey: 'target', isCurrentlyFollowing: false });
+
+    expect(mockPublish.mock.calls[0][0].tags).toEqual([
+      ['p', 'target'],
+      ['p', 'existing-follow'],
+    ]);
+  });
+
   it('removes only the unfollowed pubkey', async () => {
     mockReq.mockImplementation(settledWith([
       createContactList([['p', 'existing-follow'], ['p', 'target']]),

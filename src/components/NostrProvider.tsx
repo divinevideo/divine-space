@@ -8,6 +8,8 @@ interface NostrProviderProps {
   children: React.ReactNode;
 }
 
+const REPLACEABLE_READ_SETTLE_TIMEOUT_MS = 5000;
+
 const NostrProvider: React.FC<NostrProviderProps> = (props) => {
   const { children } = props;
   const { config } = useAppContext();
@@ -29,6 +31,7 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
   // Initialize NPool only once
   if (!pool.current) {
     pool.current = new NPool({
+      eoseTimeout: REPLACEABLE_READ_SETTLE_TIMEOUT_MS,
       open(url: string) {
         return new NRelay1(url);
       },

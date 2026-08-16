@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
 import { useAuth } from './useAuth';
 import { useKeycastPublish } from './useKeycastPublish';
+import { useToast } from './useToast';
 import { getPageAddress } from '@/lib/pageAddress';
 import { queryStrict } from '@/lib/relayRead';
 import { latestEvent, nextCreatedAt } from '@/lib/replaceableEvent';
@@ -22,6 +23,7 @@ export function usePageSave(pagePubkey: string | undefined, identifier = 'profil
   const { pubkey, isAuthenticated } = useAuth();
   const { mutateAsync: publish } = useKeycastPublish();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const pageAddress = pagePubkey ? getPageAddress(pagePubkey, identifier) : null;
 
   const query = useQuery({
@@ -93,6 +95,14 @@ export function usePageSave(pagePubkey: string | undefined, identifier = 'profil
     onSuccess: async () => {
       await queryClient.invalidateQueries({
         queryKey: createQueryKey(pubkey, pagePubkey, identifier),
+      });
+    },
+    onError: (error) => {
+      console.error('Failed to update saved page list:', error);
+      toast({
+        title: 'Could not update saved pages',
+        description: 'The current saved-page list could not be read safely. Please try again.',
+        variant: 'destructive',
       });
     },
   });
