@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Plus, X, Wifi, Settings } from 'lucide-react';
 import { useNostr } from '@nostrify/react';
 import { Button } from '@/components/ui/button';
@@ -28,6 +28,7 @@ export function RelayListManager() {
 
   const [relays, setRelays] = useState<Relay[]>(config.relayMetadata.relays);
   const [newRelayUrl, setNewRelayUrl] = useState('');
+  const publishGeneration = useRef(0);
 
   // Sync local state with config when it changes (e.g., from NostrProvider sync)
   useEffect(() => {
@@ -129,6 +130,7 @@ export function RelayListManager() {
   };
 
   const publishNIP65RelayList = async (previousRelays: Relay[], requestedRelays: Relay[]) => {
+    const generation = ++publishGeneration.current;
     try {
       const events = await queryStrict(
         nostr,
@@ -138,6 +140,9 @@ export function RelayListManager() {
       const existingEvent = latestEvent(events);
       const remoteRelays = existingEvent ? parseRelayListTags(existingEvent.tags) : [];
       const relayList = applyLocalRelayEdit(previousRelays, requestedRelays, remoteRelays);
+      if (!relayList.some((relay) => relay.read)) {
+        throw new Error('Relay list must keep at least one read relay');
+      }
       const createdAt = nextCreatedAt(existingEvent?.created_at);
 
       const published = await publishEvent({
@@ -146,6 +151,8 @@ export function RelayListManager() {
         tags: relayListTags(relayList),
         created_at: createdAt,
       });
+
+      if (generation !== publishGeneration.current) return;
 
       setRelays(relayList);
       updateConfig((current) => ({
@@ -161,6 +168,7 @@ export function RelayListManager() {
       });
     } catch (error) {
       console.error('Failed to publish relay list:', error);
+      if (generation !== publishGeneration.current) return;
       setRelays(previousRelays);
       updateConfig((current) => ({
         ...current,
@@ -171,7 +179,9 @@ export function RelayListManager() {
       }));
       toast({
         title: 'Failed to publish relay list',
-        description: 'The current relay list could not be read safely. Please try again.',
+        description: error instanceof Error && error.message.includes('at least one read relay')
+          ? 'Keep at least one relay marked for reading, then try again.'
+          : 'The current relay list could not be read safely. Please try again.',
         variant: 'destructive',
       });
     }

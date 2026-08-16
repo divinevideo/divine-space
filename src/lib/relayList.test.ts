@@ -53,4 +53,28 @@ describe('applyLocalRelayEdit', () => {
       { url: 'wss://new.example/', read: true, write: true },
     ]);
   });
+
+  it('keeps the unedited local working set when the remote list is empty', () => {
+    const localBefore = [
+      { url: 'wss://relay.divine.video', read: true, write: true },
+      { url: 'wss://relay.primal.net', read: true, write: true },
+      { url: 'wss://relay.damus.io', read: true, write: true },
+    ];
+    const localAfter = localBefore.filter((relay) => relay.url !== 'wss://relay.damus.io');
+
+    expect(applyLocalRelayEdit(localBefore, localAfter, [])).toEqual([
+      { url: 'wss://relay.divine.video', read: true, write: true },
+      { url: 'wss://relay.primal.net', read: true, write: true },
+    ]);
+  });
+
+  it('treats a trailing-slash remote URL as the same relay as a slashless local URL', () => {
+    const localBefore = [{ url: 'wss://relay.damus.io', read: true, write: true }];
+    const localAfter = [{ url: 'wss://relay.damus.io', read: true, write: false }];
+    const remoteBase = [{ url: 'wss://relay.damus.io/', read: true, write: true }];
+
+    expect(applyLocalRelayEdit(localBefore, localAfter, remoteBase)).toEqual([
+      { url: 'wss://relay.damus.io', read: true, write: false },
+    ]);
+  });
 });
