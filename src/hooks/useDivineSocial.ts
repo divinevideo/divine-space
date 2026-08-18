@@ -2,7 +2,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
 import { useAuth } from './useAuth';
 import { useKeycastPublish } from './useKeycastPublish';
+import { useToast } from './useToast';
+import { queryStrict } from '@/lib/relayRead';
+import { latestEvent, nextCreatedAt } from '@/lib/replaceableEvent';
 import type { NostrEvent } from '@nostrify/nostrify';
+
+const CONTACT_LIST_READ_TIMEOUT_MS = 5000;
 
 /**
  * Check if the current user has liked a video
@@ -122,6 +127,7 @@ export function useToggleFollow() {
   const { nostr } = useNostr();
   const { mutateAsync: publishEvent } = useKeycastPublish();
   const { pubkey, isAuthenticated } = useAuth();
+  const { toast } = useToast();
 
   return useMutation({
     mutationFn: async ({ 
@@ -133,15 +139,25 @@ export function useToggleFollow() {
     }) => {
       if (!isAuthenticated || !pubkey) throw new Error('Must be logged in');
 
-      // Get current contact list
-      const events = await nostr.query([{
-        kinds: [3],
-        authors: [pubkey],
-        limit: 1,
-      }]);
+      // Kind 3 is replaceable, so this publish discards the previous follow
+      // list wholesale. A read that was not answered would look identical to an
+      // empty list and republish a contact list holding only this one follow,
+      // silently dropping every other follow and the relay preferences in
+      // `content`. queryStrict throws rather than returning [] in that case.
+      const events = await queryStrict(
+        nostr,
+        [{
+          kinds: [3],
+          authors: [pubkey],
+          limit: 1,
+        }],
+        { timeoutMs: CONTACT_LIST_READ_TIMEOUT_MS },
+      );
 
-      const existingTags = events[0]?.tags ?? [];
-      const existingContent = events[0]?.content ?? '';
+      // Each relay answers with its own copy, so pick the newest before merging.
+      const existingEvent = latestEvent(events);
+      const existingTags = existingEvent?.tags ?? [];
+      const existingContent = existingEvent?.content ?? '';
 
       let newTags: string[][];
       
@@ -152,10 +168,15 @@ export function useToggleFollow() {
         );
       } else {
         // Follow - add the p tag
-        newTags = [
-          ...existingTags,
-          ['p', targetPubkey, 'wss://relay.divine.video'],
-        ];
+        const alreadyTagged = existingTags.some(
+          ([tag, followedPubkey]) => tag === 'p' && followedPubkey === targetPubkey
+        );
+        newTags = alreadyTagged
+          ? [...existingTags]
+          : [
+              ...existingTags,
+              ['p', targetPubkey, 'wss://relay.divine.video'],
+            ];
       }
 
       // Publish updated contact list
@@ -163,6 +184,9 @@ export function useToggleFollow() {
         kind: 3,
         content: existingContent,
         tags: newTags,
+        // Second-granular timestamps tie when two follows land in the same
+        // second, and relays break that tie inconsistently.
+        created_at: nextCreatedAt(existingEvent?.created_at),
       });
 
       return { action: isCurrentlyFollowing ? 'unfollowed' : 'followed' };
@@ -176,6 +200,14 @@ export function useToggleFollow() {
       });
       queryClient.invalidateQueries({ 
         queryKey: ['divine', 'user', 'social', pubkey] 
+      });
+    },
+    onError: (error) => {
+      console.error('Failed to update contact list:', error);
+      toast({
+        title: 'Could not update friends',
+        description: 'The current friend list could not be read safely. Please try again.',
+        variant: 'destructive',
       });
     },
   });
