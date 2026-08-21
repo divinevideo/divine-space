@@ -190,4 +190,89 @@ describe('NostrProvider', () => {
       });
     });
   });
+
+  describe('subscriptions refused pending AUTH', () => {
+    const req: NostrClientREQ = ['REQ', 'sub-1', { kinds: [1059] }];
+    const refusal: NostrRelayMsg = ['CLOSED', 'sub-1', 'auth-required: we only serve gift wraps to their recipient'];
+
+    it('holds the refusal back and replays the subscription once AUTH is sent', async () => {
+      renderProvider();
+      await loginWithNsec();
+
+      const relay = openRelay();
+      await waitFor(() => expect(authOf(relay)('c')).resolves.toBeTruthy());
+
+      relay.emit(req);
+      relay.feed(refusal);
+
+      // The caller must not see the refusal, or its subscription ends for good.
+      expect(relay.delivered).not.toContainEqual(refusal);
+
+      relay.emit(['AUTH', { id: 'x' } as NostrEvent]);
+
+      expect(relay.sent.filter((msg) => msg[0] === 'REQ')).toEqual([req, req]);
+      expect(relay.sent.findIndex((msg) => msg[0] === 'AUTH'))
+        .toBeLessThan(relay.sent.lastIndexOf(req));
+    });
+
+    it('passes the refusal through when logged out, since AUTH cannot answer it', async () => {
+      renderProvider();
+
+      const relay = openRelay();
+      relay.emit(req);
+      relay.feed(refusal);
+
+      expect(relay.delivered).toContainEqual(refusal);
+    });
+
+    it('delivers the refusal anyway when AUTH never arrives', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+
+      renderProvider();
+      await loginWithNsec();
+
+      const relay = openRelay();
+      await waitFor(() => expect(authOf(relay)('c')).resolves.toBeTruthy());
+
+      relay.emit(req);
+      relay.feed(refusal);
+      expect(relay.delivered).not.toContainEqual(refusal);
+
+      await act(async () => {
+        vi.advanceTimersByTime(5000);
+      });
+
+      expect(relay.delivered).toContainEqual(refusal);
+    });
+
+    it('holds a subscription only once, so a re-refused replay cannot loop', async () => {
+      renderProvider();
+      await loginWithNsec();
+
+      const relay = openRelay();
+      await waitFor(() => expect(authOf(relay)('c')).resolves.toBeTruthy());
+
+      relay.emit(req);
+      relay.feed(refusal);
+      relay.emit(['AUTH', { id: 'x' } as NostrEvent]);
+
+      relay.feed(refusal);
+
+      expect(relay.delivered).toContainEqual(refusal);
+    });
+
+    it('leaves an ordinary CLOSED alone', async () => {
+      renderProvider();
+      await loginWithNsec();
+
+      const relay = openRelay();
+      await waitFor(() => expect(authOf(relay)('c')).resolves.toBeTruthy());
+
+      const closed: NostrRelayMsg = ['CLOSED', 'sub-1', 'error: something else'];
+      relay.emit(req);
+      relay.feed(closed);
+
+      expect(relay.delivered).toContainEqual(closed);
+    });
+  });
 });

@@ -1,5 +1,14 @@
 import React, { useEffect, useRef } from 'react';
-import { NostrEvent, NostrFilter, NPool, NRelay1 } from '@nostrify/nostrify';
+import {
+  NostrEvent,
+  NostrFilter,
+  NPool,
+  NRelay1,
+  type NostrClientMsg,
+  type NostrRelayCLOSED,
+  type NostrRelayMsg,
+  type NRelay1Opts,
+} from '@nostrify/nostrify';
 import { NostrContext } from '@nostrify/react';
 import type { NUser } from '@nostrify/react/login';
 import { useQueryClient } from '@tanstack/react-query';
@@ -12,6 +21,12 @@ interface NostrProviderProps {
 }
 
 const REPLACEABLE_READ_SETTLE_TIMEOUT_MS = 5000;
+
+/** Prefix a relay uses to refuse a subscription until the client authenticates (NIP-42). */
+const AUTH_REQUIRED_PREFIX = 'auth-required';
+
+/** How long a refused subscription is held open waiting for AUTH before the refusal is delivered anyway. */
+const AUTH_RETRY_TIMEOUT_MS = 5000;
 
 /** Signer for the currently logged-in user, or undefined when logged out. */
 type CurrentSigner = NUser['signer'] | undefined;
@@ -36,6 +51,89 @@ function signAuthEvent(
   }
 
   return signer.signEvent(nip42.makeAuthEvent(relayUrl, challenge));
+}
+
+/**
+ * A relay that retries a subscription the relay refused pending AUTH.
+ *
+ * `NRelay1` flushes queued `REQ`s as soon as the socket opens, but answering a
+ * challenge needs a signature — a network round trip for a remote signer. The
+ * `REQ` therefore normally reaches a gating relay first and comes back as
+ * `CLOSED "auth-required: ..."`, which ends the caller's subscription. Neither
+ * `NRelay1` nor `NPool` retries a closed subscription, so that read would be
+ * lost for the lifetime of the connection.
+ *
+ * So hold the refusal back instead of passing it on, and replay the
+ * subscription once the `AUTH` response has been sent. Each subscription is
+ * held at most once, and if authentication never happens the original refusal
+ * is delivered so the caller still terminates.
+ */
+class AuthRetryRelay extends NRelay1 {
+  private readonly held = new Map<string, { closed: NostrRelayCLOSED; timer: ReturnType<typeof setTimeout> }>();
+  private readonly retried = new Set<string>();
+
+  constructor(
+    url: string,
+    opts: NRelay1Opts,
+    /** Whether a challenge can currently be answered; holding a refusal is pointless if not. */
+    private readonly canAuthenticate: () => boolean,
+  ) {
+    super(url, opts);
+  }
+
+  protected receive(msg: NostrRelayMsg): void {
+    if (this.shouldHold(msg)) {
+      this.hold(msg);
+      return;
+    }
+
+    super.receive(msg);
+  }
+
+  protected send(msg: NostrClientMsg): void {
+    super.send(msg);
+
+    if (msg[0] === 'AUTH') {
+      this.replayHeld();
+    }
+  }
+
+  private shouldHold(msg: NostrRelayMsg): msg is NostrRelayCLOSED {
+    return msg[0] === 'CLOSED' &&
+      msg[2].startsWith(AUTH_REQUIRED_PREFIX) &&
+      !this.retried.has(msg[1]) &&
+      this.canAuthenticate();
+  }
+
+  private hold(closed: NostrRelayCLOSED): void {
+    const subscriptionId = closed[1];
+
+    this.retried.add(subscriptionId);
+    this.held.set(subscriptionId, {
+      closed,
+      timer: setTimeout(() => {
+        this.held.delete(subscriptionId);
+        super.receive(closed);
+      }, AUTH_RETRY_TIMEOUT_MS),
+    });
+  }
+
+  private replayHeld(): void {
+    const held = [...this.held.values()];
+    this.held.clear();
+
+    for (const { closed, timer } of held) {
+      clearTimeout(timer);
+
+      const req = this.subscriptions.find((sub) => sub[1] === closed[1]);
+
+      if (req) {
+        this.send(req);
+      } else {
+        super.receive(closed);
+      }
+    }
+  }
 }
 
 /**
@@ -84,12 +182,16 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
     pool.current = new NPool({
       eoseTimeout: REPLACEABLE_READ_SETTLE_TIMEOUT_MS,
       open(url: string) {
-        return new NRelay1(url, {
-          // Sign NIP-42 AUTH challenges as the current user so recipient-gated
-          // reads (e.g. kind 1059 gift wraps) are delivered. Bound to this
-          // relay's url per NIP-42.
-          auth: (challenge: string) => signAuthEvent(url, challenge, signerRef.current),
-        });
+        return new AuthRetryRelay(
+          url,
+          {
+            // Sign NIP-42 AUTH challenges as the current user so recipient-gated
+            // reads (e.g. kind 1059 gift wraps) are delivered. Bound to this
+            // relay's url per NIP-42.
+            auth: (challenge: string) => signAuthEvent(url, challenge, signerRef.current),
+          },
+          () => signerRef.current !== undefined,
+        );
       },
       reqRouter(filters: NostrFilter[]) {
         const routes = new Map<string, NostrFilter[]>();
