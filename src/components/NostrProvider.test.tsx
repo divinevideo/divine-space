@@ -246,7 +246,9 @@ describe('NostrProvider', () => {
       expect(relay.delivered).toContainEqual(refusal);
     });
 
-    it('holds a subscription only once, so a re-refused replay cannot loop', async () => {
+    it('stops replaying when AUTH is answered but rejected, so it cannot loop', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+
       renderProvider();
       await loginWithNsec();
 
@@ -257,9 +259,40 @@ describe('NostrProvider', () => {
       relay.feed(refusal);
       relay.emit(['AUTH', { id: 'x' } as NostrEvent]);
 
+      // The relay rejected that AUTH and refused the replay too. With no fresh
+      // challenge behind it, the refusal must fall through rather than replay.
       relay.feed(refusal);
+      expect(relay.delivered).not.toContainEqual(refusal);
+
+      await act(async () => {
+        vi.advanceTimersByTime(5000);
+      });
 
       expect(relay.delivered).toContainEqual(refusal);
+      expect(relay.sent.filter((msg) => msg[0] === 'REQ')).toEqual([req, req]);
+    });
+
+    it('retries again after a reconnect re-races AUTH', async () => {
+      renderProvider();
+      await loginWithNsec();
+
+      const relay = openRelay();
+      await waitFor(() => expect(authOf(relay)('c')).resolves.toBeTruthy());
+
+      relay.emit(req);
+      relay.feed(refusal);
+      relay.emit(['AUTH', { id: 'x' } as NostrEvent]);
+
+      // Socket drops and reconnects: NRelay1 re-sends its open subscriptions,
+      // the relay issues a fresh challenge, and the same race happens again.
+      // The retry has to cover that connection too, or the read dies on the
+      // first reconnect and stays dead.
+      relay.emit(req);
+      relay.feed(refusal);
+      relay.emit(['AUTH', { id: 'y' } as NostrEvent]);
+
+      expect(relay.delivered).not.toContainEqual(refusal);
+      expect(relay.sent.filter((msg) => msg[0] === 'REQ')).toEqual([req, req, req, req]);
     });
 
     it('drops a held refusal when the relay is closed', async () => {

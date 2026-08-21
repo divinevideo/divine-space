@@ -64,13 +64,22 @@ function signAuthEvent(
  * lost for the lifetime of the connection.
  *
  * So hold the refusal back instead of passing it on, and replay the
- * subscription once the `AUTH` response has been sent. Each subscription is
- * held at most once, and if authentication never happens the original refusal
- * is delivered so the caller still terminates.
+ * subscription once the `AUTH` response has been sent. If authentication never
+ * happens the original refusal is delivered so the caller still terminates.
+ *
+ * A subscription is held at most once per `AUTH` response, not once per
+ * connection: a socket that drops and reconnects gets a fresh challenge and
+ * re-races it the same way, and that reconnect deserves the same retry the
+ * first connection got. Replaying only after an `AUTH` we sent still bounds it
+ * -- a relay that answers a replay with another refusal and no new challenge
+ * falls through to the timeout instead of looping.
  */
 class AuthRetryRelay extends NRelay1 {
   private readonly held = new Map<string, { closed: NostrRelayCLOSED; timer: ReturnType<typeof setTimeout> }>();
-  private readonly retried = new Set<string>();
+  /** Subscription id -> the `authRound` it was last held for. */
+  private readonly retried = new Map<string, number>();
+  /** Bumped per `AUTH` response sent, so each one earns a subscription one retry. */
+  private authRound = 0;
 
   constructor(
     url: string,
@@ -94,6 +103,7 @@ class AuthRetryRelay extends NRelay1 {
     super.send(msg);
 
     if (msg[0] === 'AUTH') {
+      this.authRound += 1;
       this.replayHeld();
     }
   }
@@ -117,14 +127,14 @@ class AuthRetryRelay extends NRelay1 {
   private shouldHold(msg: NostrRelayMsg): msg is NostrRelayCLOSED {
     return msg[0] === 'CLOSED' &&
       msg[2].startsWith(AUTH_REQUIRED_PREFIX) &&
-      !this.retried.has(msg[1]) &&
+      this.retried.get(msg[1]) !== this.authRound &&
       this.canAuthenticate();
   }
 
   private hold(closed: NostrRelayCLOSED): void {
     const subscriptionId = closed[1];
 
-    this.retried.add(subscriptionId);
+    this.retried.set(subscriptionId, this.authRound);
     this.held.set(subscriptionId, {
       closed,
       timer: setTimeout(() => {
