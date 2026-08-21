@@ -98,6 +98,22 @@ class AuthRetryRelay extends NRelay1 {
     }
   }
 
+  /**
+   * Release anything still being held. `NRelay1.close` knows nothing about the
+   * hold timers, so without this a replaced pool leaves one running per held
+   * subscription for up to `AUTH_RETRY_TIMEOUT_MS` after the connection they
+   * belonged to is gone.
+   */
+  async close(): Promise<void> {
+    for (const { timer } of this.held.values()) {
+      clearTimeout(timer);
+    }
+
+    this.held.clear();
+
+    await super.close();
+  }
+
   private shouldHold(msg: NostrRelayMsg): msg is NostrRelayCLOSED {
     return msg[0] === 'CLOSED' &&
       msg[2].startsWith(AUTH_REQUIRED_PREFIX) &&

@@ -36,6 +36,7 @@ interface MockRelay {
   closed: boolean;
   feed(msg: NostrRelayMsg): void;
   emit(msg: NostrClientMsg): void;
+  close(): Promise<void>;
 }
 
 vi.mock('@nostrify/nostrify', async (importOriginal) => {
@@ -259,6 +260,28 @@ describe('NostrProvider', () => {
       relay.feed(refusal);
 
       expect(relay.delivered).toContainEqual(refusal);
+    });
+
+    it('drops a held refusal when the relay is closed', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+
+      renderProvider();
+      await loginWithNsec();
+
+      const relay = openRelay();
+      await waitFor(() => expect(authOf(relay)('c')).resolves.toBeTruthy());
+
+      relay.emit(req);
+      relay.feed(refusal);
+
+      await act(async () => {
+        await relay.close();
+        vi.advanceTimersByTime(5000);
+      });
+
+      // The connection this refusal belonged to is gone, so nothing should
+      // still be scheduled to deliver it.
+      expect(relay.delivered).not.toContainEqual(refusal);
     });
 
     it('leaves an ordinary CLOSED alone', async () => {
