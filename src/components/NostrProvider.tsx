@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   NostrEvent,
   NostrFilter,
@@ -137,19 +137,33 @@ class AuthRetryRelay extends NRelay1 {
 }
 
 /**
- * Keeps `signerRef` pointed at the current user's signer. The pool (and its
- * `auth` callback) is created once, before login, but the signer changes on
- * login/logout; the AUTH callback reads this ref at challenge time. Rendered
- * inside NostrContext so it can resolve the active login via useCurrentUser.
+ * Keeps `signerRef` pointed at the current user's signer, and reports account
+ * changes so the provider can shed connections authenticated as someone else.
+ * The pool (and its `auth` callback) is created once, before login, but the
+ * signer changes on login/logout; the AUTH callback reads this ref at challenge
+ * time. Rendered inside NostrContext so it can resolve the active login via
+ * useCurrentUser.
  */
 function CurrentSignerTracker(
-  { signerRef }: { signerRef: React.MutableRefObject<CurrentSigner> },
+  { signerRef, onAccountChange }: {
+    signerRef: React.MutableRefObject<CurrentSigner>;
+    onAccountChange: () => void;
+  },
 ): null {
   const { user } = useCurrentUser();
+  const pubkey = user?.pubkey;
+  const previousPubkey = useRef(pubkey);
 
+  // Declared first so the new signer is in place before the pool is replaced.
   useEffect(() => {
     signerRef.current = user?.signer;
   }, [user, signerRef]);
+
+  useEffect(() => {
+    if (previousPubkey.current === pubkey) return;
+    previousPubkey.current = pubkey;
+    onAccountChange();
+  }, [pubkey, onAccountChange]);
 
   return null;
 }
@@ -163,6 +177,9 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
   // Create NPool instance only once
   const pool = useRef<NPool | undefined>(undefined);
 
+  // Bumped when the pool is replaced, to publish the new one on the context.
+  const [, setPoolGeneration] = useState(0);
+
   // Use refs so the pool always has the latest data
   const relayMetadata = useRef(config.relayMetadata);
 
@@ -171,15 +188,8 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
   // CurrentSignerTracker keeps it current.
   const signerRef = useRef<CurrentSigner>(undefined);
 
-  // Invalidate Nostr queries when relay metadata changes
-  useEffect(() => {
-    relayMetadata.current = config.relayMetadata;
-    queryClient.invalidateQueries({ queryKey: ['nostr'] });
-  }, [config.relayMetadata, queryClient]);
-
-  // Initialize NPool only once
-  if (!pool.current) {
-    pool.current = new NPool({
+  const createPool = useCallback(() => {
+    return new NPool({
       eoseTimeout: REPLACEABLE_READ_SETTLE_TIMEOUT_MS,
       open(url: string) {
         return new AuthRetryRelay(
@@ -218,11 +228,42 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
         return [...allRelays];
       },
     });
+  }, []);
+
+  // NIP-42 authenticates the socket, not the request, so a connection opened
+  // for the previous account stays authenticated as them and the relay keeps
+  // refusing the new account's recipient-gated reads. Replace the pool so every
+  // relay reconnects and answers the next challenge as the current user.
+  const handleAccountChange = useCallback(() => {
+    const stale = pool.current;
+
+    // A pool that never opened a socket has no relay session to shed.
+    if (!stale?.relays.size) return;
+
+    pool.current = createPool();
+    setPoolGeneration((generation) => generation + 1);
+
+    void stale.close();
+    queryClient.invalidateQueries({ queryKey: ['nostr'] });
+  }, [createPool, queryClient]);
+
+  // Invalidate Nostr queries when relay metadata changes
+  useEffect(() => {
+    relayMetadata.current = config.relayMetadata;
+    queryClient.invalidateQueries({ queryKey: ['nostr'] });
+  }, [config.relayMetadata, queryClient]);
+
+  // Initialize NPool only once
+  if (!pool.current) {
+    pool.current = createPool();
   }
 
   return (
     <NostrContext.Provider value={{ nostr: pool.current }}>
-      <CurrentSignerTracker signerRef={signerRef} />
+      <CurrentSignerTracker
+        signerRef={signerRef}
+        onAccountChange={handleAccountChange}
+      />
       {children}
     </NostrContext.Provider>
   );

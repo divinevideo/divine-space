@@ -275,4 +275,33 @@ describe('NostrProvider', () => {
       expect(relay.delivered).toContainEqual(closed);
     });
   });
+
+  describe('account changes', () => {
+    it('replaces the pool so relays reconnect and re-authenticate as the new user', async () => {
+      renderProvider();
+      await loginWithNsec();
+
+      const relay = openRelay();
+      const stalePool = pool;
+
+      await act(async () => {
+        await login!.logout();
+      });
+
+      await waitFor(() => expect(pool).not.toBe(stalePool));
+      expect(relay.closed).toBe(true);
+    });
+
+    it('does not churn the pool when logging in before any relay has connected', async () => {
+      renderProvider();
+      const initialPool = pool;
+
+      await loginWithNsec();
+      // The profile read that follows login is what opens the first connection.
+      await waitFor(() => expect(relays.length).toBeGreaterThan(0));
+
+      expect(pool).toBe(initialPool);
+      expect(relays.some((relay) => relay.closed)).toBe(false);
+    });
+  });
 });
