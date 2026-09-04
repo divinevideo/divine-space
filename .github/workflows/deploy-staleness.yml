@@ -1,0 +1,111 @@
+name: Deploy Staleness
+
+# divine-space went twelve days without a successful deploy and nothing said
+# so. The deploy is workflow_run-gated on Test succeeding on a main push, so
+# when it does not fire it reports "skipped" rather than red - and a transient
+# provider failure turns into indefinite silence instead of a visible break.
+#
+# This watches the age of the last *successful* deploy and opens an issue when
+# it exceeds the threshold. Absence of success is the signal; absence of
+# failure is not.
+
+on:
+  schedule:
+    - cron: '0 9 * * *'
+  workflow_dispatch:
+    inputs:
+      max_age_days:
+        description: 'Days without a successful deploy before alerting'
+        type: string
+        default: '7'
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    name: Check how long since the last successful deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Measure and alert
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MAX_AGE_DAYS: ${{ inputs.max_age_days || '7' }}
+          WORKFLOW: deploy.yml
+          LABEL: deploy-staleness
+        run: |
+          set -euo pipefail
+
+          last=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${WORKFLOW}/runs?status=success&per_page=1" \
+            --jq '.workflow_runs[0].updated_at // empty')
+
+          if [ -z "$last" ]; then
+            echo "::warning::No successful run of ${WORKFLOW} found at all."
+            age_days=99999
+            last="never"
+          else
+            age_days=$(( ( $(date -u +%s) - $(date -u -d "$last" +%s) ) / 86400 ))
+          fi
+
+          echo "last successful deploy: $last"
+          echo "age (days): $age_days   threshold: $MAX_AGE_DAYS"
+          {
+            echo "## Deploy staleness"
+            echo ""
+            echo "- last successful deploy: \`$last\`"
+            echo "- age: **$age_days** day(s), threshold **$MAX_AGE_DAYS**"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$age_days" -le "$MAX_AGE_DAYS" ]; then
+            echo "Within threshold."
+            # Close a previous alert if the deploy has recovered, so the issue
+            # tracks the current state rather than accumulating stale reports.
+            open=$(gh issue list --repo "$GITHUB_REPOSITORY" --label "$LABEL" \
+              --state open --json number --jq '.[0].number // empty')
+            if [ -n "$open" ]; then
+              gh issue comment "$open" --repo "$GITHUB_REPOSITORY" \
+                --body "Deploys have recovered — last successful deploy was \`$last\` ($age_days day(s) ago, threshold $MAX_AGE_DAYS). Closing."
+              gh issue close "$open" --repo "$GITHUB_REPOSITORY" --reason completed
+            fi
+            exit 0
+          fi
+
+          # Already alerting? Do not open a second issue every morning.
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --label "$LABEL" \
+            --state open --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            echo "Alert already open as #$existing; not filing another."
+            exit 0
+          fi
+
+          gh label create "$LABEL" --repo "$GITHUB_REPOSITORY" \
+            --description "Automated deploy-staleness alerts" --color BFD4F2 2>/dev/null || true
+
+          gh issue create --repo "$GITHUB_REPOSITORY" \
+            --title "fix(ci): no successful deploy in $age_days days" \
+            --label "$LABEL" \
+            --body "$(cat <<EOF
+          The last successful run of \`${WORKFLOW}\` was **\`$last\`** — $age_days day(s) ago, against a threshold of $MAX_AGE_DAYS.
+
+          This is opened automatically because a gap this long is usually invisible. The deploy is \`workflow_run\`-gated on the Test workflow succeeding on a push to the default branch, so when it does not fire it reports **skipped**, not failed. Nothing goes red, and a transient provider error becomes indefinite silence.
+
+          ### What to check
+
+          1. Recent runs: \`gh run list --repo ${GITHUB_REPOSITORY} --workflow ${WORKFLOW}\`
+          2. Whether they are **skipped** (never triggered) or **failed** (tried and could not).
+          3. If skipped, whether anything has merged to the default branch at all.
+
+          ### Resolving
+
+          Trigger a deploy manually and confirm it activates:
+
+          \`\`\`bash
+          gh workflow run "${WORKFLOW}" --repo ${GITHUB_REPOSITORY} --ref main
+          \`\`\`
+
+          A green job is not sufficient evidence — confirm the deploy step actually ran, since a skipped step still reports success.
+
+          This issue closes itself once a successful deploy is seen.
+          EOF
+          )"
