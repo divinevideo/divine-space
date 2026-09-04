@@ -86,26 +86,26 @@ jobs:
             --title "fix(ci): no successful deploy in $age_days days" \
             --label "$LABEL" \
             --body "$(cat <<EOF
-The last successful run of \`${WORKFLOW}\` was **\`$last\`** — $age_days day(s) ago, against a threshold of $MAX_AGE_DAYS.
+          The last successful run of \`${WORKFLOW}\` was **\`$last\`** — $age_days day(s) ago, against a threshold of $MAX_AGE_DAYS.
 
-This is opened automatically because a gap this long is usually invisible. The deploy is \`workflow_run\`-gated on the Test workflow succeeding on a push to the default branch, so when it does not fire it reports **skipped**, not failed. Nothing goes red, and a transient provider error becomes indefinite silence.
+          This is opened automatically because a gap this long is usually invisible. The deploy is \`workflow_run\`-gated on the Test workflow succeeding on a push to the default branch, so when it does not fire it reports **skipped**, not failed. Nothing goes red, and a transient provider error becomes indefinite silence.
 
-### What to check
+          ### What to check
 
-1. Recent runs: \`gh run list --repo ${GITHUB_REPOSITORY} --workflow ${WORKFLOW}\`
-2. Whether they are **skipped** (never triggered) or **failed** (tried and could not).
-3. If skipped, whether anything has merged to the default branch at all.
+          1. Recent runs: \`gh run list --repo ${GITHUB_REPOSITORY} --workflow ${WORKFLOW}\`
+          2. Whether they are **skipped** (never triggered) or **failed** (tried and could not).
+          3. If skipped, whether anything has merged to the default branch at all.
 
-### Resolving
+          ### Resolving
 
-Trigger a deploy manually and confirm it activates:
+          Trigger a deploy manually and confirm it activates:
 
-\`\`\`bash
-gh workflow run "${WORKFLOW}" --repo ${GITHUB_REPOSITORY} --ref main
-\`\`\`
+          \`\`\`bash
+          gh workflow run "${WORKFLOW}" --repo ${GITHUB_REPOSITORY} --ref main
+          \`\`\`
 
-A green job is not sufficient evidence — confirm the deploy step actually ran, since a skipped step still reports success.
+          A green job is not sufficient evidence — confirm the deploy step actually ran, since a skipped step still reports success.
 
-This issue closes itself once a successful deploy is seen.
-EOF
-)"
+          This issue closes itself once a successful deploy is seen.
+          EOF
+          )"
